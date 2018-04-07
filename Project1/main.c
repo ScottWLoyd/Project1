@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <stdio.h>
+#include <math.h>
 #include <gl/GL.h>
 
 #include "common.c"
@@ -14,16 +15,31 @@ typedef struct WindowDimension {
 
 typedef struct RenderState {
     Bitmap target_bitmap;
+    GLuint target_texture_id;
 } RenderState;
 
 bool global_running;
 bool global_paused;
 RenderState global_render_state;
 
+Vec3 ColorRed = { 1.0f, 0.0f, 0.0f };
+
 static void InitRenderState()
 {
     RenderState* state = &global_render_state;
     state->target_bitmap = Win32LoadBitmap("./res/target.bmp");
+        
+    glGenTextures(1, &state->target_texture_id);
+    glBindTexture(GL_TEXTURE_2D, state->target_texture_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, state->target_bitmap.width, state->target_bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, state->target_bitmap.pixels);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glEnable(GL_TEXTURE_2D);
 }
 
 static WindowDimension GetWindowDimension(HWND window)
@@ -38,30 +54,24 @@ static WindowDimension GetWindowDimension(HWND window)
     return result;
 }
 
+static void DrawCircle(int center_x, int center_y, float radius, Vec3 color)
+{
+    glBegin(GL_LINE_LOOP);
+    glColor3f(color.r, color.g, color.b);
+    int num_points = 80;
+    float scalar = TWO_PI / num_points;
+    for (int i = 0; i < num_points; i++)
+    {
+        float x = center_x + radius * cosf(i * scalar);
+        float y = center_y + radius * sinf(i * scalar);
+        glVertex2f(x, y);
+    }
+    glEnd();
+}
+
 static void Win32DisplayBufferInWindow(HDC device_context, WindowDimension dimensions)
 {
     glViewport(0, 0, dimensions.width, dimensions.height);
-    
-    // TODO(scott): replace this
-    static bool init = false;
-    static GLuint texture_id;
-    if (!init)
-    {
-        glGenTextures(1, &texture_id);
-        init = true;
-    }
-
-    RenderState* state = &global_render_state;
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, state->target_bitmap.width, state->target_bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, state->target_bitmap.pixels);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-    glEnable(GL_TEXTURE_2D);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -73,34 +83,47 @@ static void Win32DisplayBufferInWindow(HDC device_context, WindowDimension dimen
     glLoadIdentity();
 
     glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+    float a = 2.0f / dimensions.width;
+    float b = 2.0f / dimensions.height;
+    float proj[] = {
+         a,  0,  0,  0,
+         0,  b,  0,  0,
+         0,  0,  1,  0,
+        -1, -1,  0,  1
+    };
+    glLoadMatrixf(proj);
 
     glBegin(GL_TRIANGLES);
 
-    float p = 0.9f;
+    Vec2 center = { dimensions.width * 0.5f, dimensions.height * 0.5f };
+    Vec2 min_p = { center.x - 100, center.y - 100};
+    Vec2 max_p = { center.x + 100, center.y + 100 };
 
-    //glColor3f(1.0f, 0.0f, 0.0f);
+    glColor3f(1.0f, 1.0f, 1.0f);
     glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(-p, -p);
+    glVertex2f(min_p.x, min_p.y);
 
     glTexCoord2f(1.0f, 0.0f);
     //glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex2f(p, -p);
+    glVertex2f(max_p.x, min_p.y);
 
     glTexCoord2f(1.0f, 1.0f);
     //glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex2f(p, p);
+    glVertex2f(max_p.x, max_p.y);
 
     glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(-p, -p);
+    glVertex2f(min_p.x, min_p.y);
 
     glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(p, p);
+    glVertex2f(max_p.x, max_p.y);
 
     glTexCoord2f(0.0f, 1.0f);
-    glVertex2f(-p, p);
+    glVertex2f(min_p.x, max_p.y);
 
     glEnd();
+
+    float radius = 0.45f * (float)dimensions.height;
+    DrawCircle(dimensions.width / 2, dimensions.height / 2, radius, ColorRed);
 
     SwapBuffers(device_context);
 }
@@ -202,7 +225,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     window_class.lpfnWndProc = (WNDPROC)WindowProc;
     window_class.hInstance = hInstance;
     window_class.hCursor = LoadCursor(0, IDC_ARROW);
-    window_class.hbrBackground = COLOR_WINDOW;
     window_class.lpszClassName = "Project1 Window Class";
     
     if (RegisterClassEx(&window_class))
