@@ -6,41 +6,22 @@
 #include <math.h>
 #include <gl/GL.h>
 
+typedef int bool;
+#define true (1==1)
+#define false (1==0)
+
+#define MAX(x,y) (x > y ? x : y)
+
+#include "math.c"
+#include "memory.c"
+#include "render.c"
 #include "common.c"
+#include "simulation.c"
 
-typedef struct WindowDimension {
-    int width;
-    int height;
-} WindowDimension;
+static bool global_running;
+static bool global_paused;
+static RenderState* global_render_state;
 
-typedef struct RenderState {
-    Bitmap target_bitmap;
-    GLuint target_texture_id;
-} RenderState;
-
-bool global_running;
-bool global_paused;
-RenderState global_render_state;
-
-Vec3 ColorRed = { 1.0f, 0.0f, 0.0f };
-
-static void InitRenderState()
-{
-    RenderState* state = &global_render_state;
-    state->target_bitmap = Win32LoadBitmap("./res/target.bmp");
-        
-    glGenTextures(1, &state->target_texture_id);
-    glBindTexture(GL_TEXTURE_2D, state->target_texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, state->target_bitmap.width, state->target_bitmap.height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, state->target_bitmap.pixels);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-    glEnable(GL_TEXTURE_2D);
-}
 
 static WindowDimension GetWindowDimension(HWND window)
 {
@@ -52,104 +33,6 @@ static WindowDimension GetWindowDimension(HWND window)
     result.height = client_rect.bottom - client_rect.top;
 
     return result;
-}
-
-static void DrawCircle(int center_x, int center_y, float radius, Vec3 color)
-{
-    glBegin(GL_LINE_LOOP);
-    glColor3f(color.r, color.g, color.b);
-    int num_points = 80;
-    float scalar = TWO_PI / num_points;
-    for (int i = 0; i < num_points; i++)
-    {
-        float x = center_x + radius * cosf(i * scalar);
-        float y = center_y + radius * sinf(i * scalar);
-        glVertex2f(x, y);
-    }
-    glEnd();
-}
-
-static void Win32DisplayBufferInWindow(HDC device_context, WindowDimension dimensions)
-{
-    glViewport(0, 0, dimensions.width, dimensions.height);
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glMatrixMode(GL_PROJECTION);
-    float a = 2.0f / dimensions.width;
-    float b = 2.0f / dimensions.height;
-    float proj[] = {
-         a,  0,  0,  0,
-         0,  b,  0,  0,
-         0,  0,  1,  0,
-        -1, -1,  0,  1
-    };
-    glLoadMatrixf(proj);
-
-    glBegin(GL_TRIANGLES);
-
-    Vec2 center = { dimensions.width * 0.5f, dimensions.height * 0.5f };
-    Vec2 min_p = { center.x - 100, center.y - 100};
-    Vec2 max_p = { center.x + 100, center.y + 100 };
-
-    glColor3f(1.0f, 1.0f, 1.0f);
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(min_p.x, min_p.y);
-
-    glTexCoord2f(1.0f, 0.0f);
-    //glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex2f(max_p.x, min_p.y);
-
-    glTexCoord2f(1.0f, 1.0f);
-    //glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex2f(max_p.x, max_p.y);
-
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(min_p.x, min_p.y);
-
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(max_p.x, max_p.y);
-
-    glTexCoord2f(0.0f, 1.0f);
-    glVertex2f(min_p.x, max_p.y);
-
-    glEnd();
-
-    float radius = 0.45f * (float)dimensions.height;
-    DrawCircle(dimensions.width / 2, dimensions.height / 2, radius, ColorRed);
-
-    SwapBuffers(device_context);
-}
-
-static void Win32InitOpenGL(HWND window)
-{
-    HDC device_context = GetDC(window);
-
-    PIXELFORMATDESCRIPTOR pixel_format = { 0 };
-    pixel_format.nSize = sizeof(pixel_format);
-    pixel_format.nVersion = 1;
-    pixel_format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-    pixel_format.cColorBits = 32;
-    pixel_format.cAlphaBits = 8;
-
-    int pixel_format_index = ChoosePixelFormat(device_context, &pixel_format);
-    PIXELFORMATDESCRIPTOR suggested_pixel_format;
-    DescribePixelFormat(device_context, pixel_format_index, sizeof(PIXELFORMATDESCRIPTOR), &suggested_pixel_format);
-    SetPixelFormat(device_context, pixel_format_index, &suggested_pixel_format);
-
-    HGLRC opengl_rc = wglCreateContext(device_context);
-    if (!wglMakeCurrent(device_context, opengl_rc))    
-    {
-        assert(!"Failed to create OpenGL context!");
-    }
-    ReleaseDC(window, device_context);
 }
 
 static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -178,7 +61,8 @@ static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT paint;
             HDC device_context = BeginPaint(window, &paint);
             WindowDimension dimensions = GetWindowDimension(window);
-            Win32DisplayBufferInWindow(device_context, dimensions);
+            Render(global_render_state, dimensions);
+            SwapBuffers(device_context);
             EndPaint(window, &paint);
         } break;
 
@@ -240,10 +124,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         {
             global_running = true;
             global_paused = false;
+            
+            InitOpenGL(window);
 
-            Win32InitOpenGL(window);
-
-            InitRenderState();
+            SimState state = { 0 };
+            InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
+            InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
+            global_render_state = &state.render_state;
 
             while (global_running)
             {
@@ -251,12 +138,16 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                 if (!global_paused)
                 {
+                    AddStaticRenderObjects(global_render_state);
+
                     // update
+                    UpdateSimulation(&state);
                 }
 
                 HDC device_context = GetDC(window);
                 WindowDimension dimensions = GetWindowDimension(window);
-                Win32DisplayBufferInWindow(device_context, dimensions);
+                Render(global_render_state, dimensions);
+                SwapBuffers(device_context);
                 ReleaseDC(window, device_context);
             }
         }
