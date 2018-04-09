@@ -10,6 +10,8 @@ typedef int bool;
 #define true (1==1)
 #define false (1==0)
 
+#include "imgui_impl.h"
+
 #define MAX(x,y) (x > y ? x : y)
 
 #include "math.c"
@@ -21,7 +23,7 @@ typedef int bool;
 static bool global_running;
 static bool global_paused;
 static RenderState* global_render_state;
-
+static UiState global_ui_state;
 
 static WindowDimension GetWindowDimension(HWND window)
 {
@@ -86,12 +88,41 @@ static void Win32ProcessPendingMessages()
             case WM_SYSKEYDOWN:
             case WM_SYSKEYUP:
             case WM_KEYDOWN:
-            case WM_KEYUP: {
-                // TODO(scott): implement this
+            case WM_KEYUP: {                
                 uint32_t vk_code = (uint32_t)message.wParam;
                 bool was_down = ((message.lParam & (1 << 30)) != 0);
-                bool is_doan = ((message.lParam & (1 << 31)) == 0);
+                bool is_down = ((message.lParam & (1 << 31)) == 0);
+
+                char c = (char)(MapVirtualKey(vk_code, MAPVK_VK_TO_CHAR) & 0xff);
+                if (isprint(c) && is_down)
+                {
+                    ImGui_ImplGlfw_CharCallback(c);
+                }
+                else
+                {
+                    ImGui_ImplGlfw_KeyCallback(vk_code, is_down ? UiKeyPressed : UiKeyReleased);
+                }
             } break;
+
+            case WM_LBUTTONDOWN: {
+                ImGui_MouseButtonCallback(0, true);
+            } break;
+            case WM_LBUTTONUP: {
+                ImGui_MouseButtonCallback(0, false);
+            } break;
+            case WM_MBUTTONDOWN: {
+                ImGui_MouseButtonCallback(1, true);
+            } break;
+            case WM_MBUTTONUP: {
+                ImGui_MouseButtonCallback(1, false);
+            } break;
+            case WM_RBUTTONDOWN: {
+                ImGui_MouseButtonCallback(2, true);
+            } break;
+            case WM_RBUTTONUP: {
+                ImGui_MouseButtonCallback(2, false);
+            } break;
+
 
             default: {
                 TranslateMessage(&message);
@@ -132,8 +163,18 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
             global_render_state = &state.render_state;
 
+            ImGui_ImplGlfwGL2_Init(window);
+
+            LARGE_INTEGER start_counter, end_counter;
+            QueryPerformanceCounter(&start_counter);
+            LARGE_INTEGER frequency_result;
+            int64_t counter_frequency;
+            QueryPerformanceFrequency(&frequency_result);
+            counter_frequency = frequency_result.QuadPart;
+
             while (global_running)
             {
+
                 Win32ProcessPendingMessages();
 
                 if (!global_paused)
@@ -141,14 +182,25 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     AddStaticRenderObjects(global_render_state);
 
                     // update
+                    QueryPerformanceCounter(&end_counter);
+                    float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
+                    start_counter = end_counter;
+                    state.dt = global_ui_state.dt = elapsed_seconds;
+
                     UpdateSimulation(&state);
                 }
 
                 HDC device_context = GetDC(window);
                 WindowDimension dimensions = GetWindowDimension(window);
                 Render(global_render_state, dimensions);
+
+
+                ImGui_ImplGlfwGL2_NewFrame(state.dt);
+                render_imgui_windows(&global_ui_state);
+
                 SwapBuffers(device_context);
                 ReleaseDC(window, device_context);
+                
             }
         }
     }

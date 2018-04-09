@@ -13,6 +13,8 @@ typedef struct EntityType {
 typedef struct SimState {        
     bool initialized;
 
+    float dt;
+
     MemoryArena sim_arena;
     EntityType* entities[1024];
     uint32_t num_entities;
