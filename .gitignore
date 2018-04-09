@@ -1,5 +1,9 @@
 *.opendb
 *.sdf
+Debug
+Release
+x64
 Project1/Debug
 Project1/Release
+Project1/x64
 imgui.ini

@@ -174,27 +174,24 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
             while (global_running)
             {
-
                 Win32ProcessPendingMessages();
+
+                AddStaticRenderObjects(global_render_state);
+
+                QueryPerformanceCounter(&end_counter);
+                float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
+                start_counter = end_counter;
+                state.dt = global_ui_state.dt = elapsed_seconds;
 
                 if (!global_paused)
                 {
-                    AddStaticRenderObjects(global_render_state);
-
-                    // update
-                    QueryPerformanceCounter(&end_counter);
-                    float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
-                    start_counter = end_counter;
-                    state.dt = global_ui_state.dt = elapsed_seconds;
-
                     UpdateSimulation(&state);
                 }
 
                 HDC device_context = GetDC(window);
                 WindowDimension dimensions = GetWindowDimension(window);
                 Render(global_render_state, dimensions);
-
-
+                
                 ImGui_ImplGlfwGL2_NewFrame(state.dt);
                 render_imgui_windows(&global_ui_state);
 

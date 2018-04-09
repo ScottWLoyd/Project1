@@ -252,7 +252,8 @@ static void Render(RenderState* state, WindowDimension dimensions)
         switch (object->type)
         {
             case RenderObjectTexturedRect: {
-
+                
+                glEnable(GL_TEXTURE_2D);
                 glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
 
                 glBegin(GL_TRIANGLES);
@@ -278,16 +279,18 @@ static void Render(RenderState* state, WindowDimension dimensions)
                 glVertex2f(min_p.x, max_p.y);
 
                 glEnd();
+                
+                glDisable(GL_TEXTURE_2D);
 
             } break;
 
             case RenderObjectCircle: {
-
+                
                 Vec2 center = { (dimensions.width * 0.5f) + object->circle.center.x,
                     (dimensions.height * 0.5f) + object->circle.center.y };
                 float radius = 0.5f * min_dimension * object->circle.radius;
                 draw_circle(center.x, center.y, radius, object->color);
-
+                
             } break;
 
             default: {
