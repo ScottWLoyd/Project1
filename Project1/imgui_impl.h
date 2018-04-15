@@ -32,7 +32,7 @@ extern "C" {
     bool ImGui_ImplGlfwGL2_Init(HWND window);
     void ImGui_ImplGlfwGL2_Shutdown();
     void ImGui_ImplGlfwGL2_NewFrame(float dt);
-    void render_imgui_windows(UiState*);
+    void render_imgui_windows(SimState*, bool*);
 #ifdef __cplusplus
 };
 #endif

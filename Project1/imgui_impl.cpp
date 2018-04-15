@@ -3,6 +3,10 @@
 #include <gl/GL.h>
 #include "imgui/imgui.h"
 
+#include "math.h"
+#include "memory.h"
+#include "render.h"
+#include "common.h"
 #include "imgui_impl.h"
 
 static HWND g_Window;
@@ -32,22 +36,13 @@ static POINT get_mouse_position_in_client()
     return mouse_pos;
 }
 
-void render_imgui_windows(UiState* state)
+void render_imgui_windows(SimState* state, bool* paused)
 {
     static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     // 1. Show a simple window.
     // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
     {
         static float f = 0.0f;
-        static int counter = 0;
-        ImGui::Text("Hello, world!");                           // Display some text (you can use a format string too)
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f    
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-        
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (NB: most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
         ImGui::Text("dt = %f", state->dt);
         //ImGui::Checkbox("lmouse:", &state->mouse_buttons_pressed[0]);
         
@@ -56,6 +51,16 @@ void render_imgui_windows(UiState* state)
         ImGui::InputFloat("input:", &f);
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+        if (ImGui::Button(*paused ? "Resume" : "Pause"))
+        {
+            *paused = !*paused;
+        }
+
+        if (ImGui::Button("Reset"))
+        {
+            state->initialized = false;
+        }
     }
 
     ImGui::Render();

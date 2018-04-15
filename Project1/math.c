@@ -1,13 +1,5 @@
-#define PI 3.14159265359f
-#define TWO_PI 2.0f*PI
-#define PI_OVER_TWO PI*0.5f
 
-typedef union Vec2 {
-    struct {
-        float x, y;
-    };
-    float e[2];
-} Vec2;
+
 
 static inline Vec2 vec2(float x, float y)
 {
@@ -17,12 +9,29 @@ static inline Vec2 vec2(float x, float y)
     return result;
 }
 
-typedef union Vec3 {
-    struct {
-        float x, y, z;
-    };
-    struct {
-        float r, g, b;
-    };
-    float e[3];
-} Vec3;
+static inline Vec3 vec3(float x, float y, float z)
+{
+    Vec3 result;
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return result;
+}
+
+static inline Vec3 vec3_add(Vec3 a, Vec3 b)
+{
+    Vec3 result;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+    result.z = a.z + b.z;
+    return result;
+}
+
+static inline Vec3 vec3_sub(Vec3 a, Vec3 b)
+{
+    Vec3 result;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+    result.z = a.z - b.z;
+    return result;
+}

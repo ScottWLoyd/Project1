@@ -1,7 +1,4 @@
 
-#define KILOBYTES(b) ((b) * 1024)
-#define MEGABYTES(b) ((b) * 1024 * 1024)
-
 static void* xcalloc(size_t num_items, size_t item_size)
 {
     void* ptr = calloc(num_items, item_size);
@@ -42,12 +39,6 @@ static void* memdup(void* src, size_t size)
     return dest;
 }
 
-typedef struct MemoryArena {
-    char* base;
-    char* next;
-    size_t size;
-} MemoryArena;
-
 static void InitializeMemoryArena(MemoryArena* arena, size_t size)
 {
     arena->base = xmalloc(size);
@@ -76,34 +67,27 @@ static void zero_size(void* ptr, size_t size)
     }
 }
 
-typedef struct FileContents {
-    size_t len;
-    void* data;
-    bool success;
-} FileContents;
 
 static FileContents ReadEntireFile(char* file_path)
 {
     FileContents result = { 0 };
 
-    FILE* file = fopen(file_path, "r");
+    FILE* file = fopen(file_path, "rb");
     fseek(file, 0, SEEK_END);
     long len = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    rewind(file);
 
-    result.data = malloc(len);
+    result.data = calloc(1, len);
     result.len = fread(result.data, 1, len, file);
+    assert(result.len == len);
+    assert(!ferror(file));
     result.success = true;
+
+    fclose(file);
+
     return result;
 }
 
-// Stretchy buffers
-typedef struct BufHdr
-{
-    size_t len;
-    size_t cap;
-    char buf[0];
-} BufHdr;
 
 #define buf__hdr(b) ((BufHdr*)((char*)(b) - offsetof(BufHdr, buf)))
 
@@ -154,4 +138,34 @@ char* buf__printf(char* buf, const char* fmt, ...)
     va_end(args);
     buf__hdr(buf)->len += n;
     return buf;
+}
+
+inline BitScanResult find_least_significant_set_bit(uint32_t value)
+{
+    BitScanResult result = {0};
+
+    for (uint32_t test = 0; test < 32; test++)
+    {
+        if (value & (1 << test))
+        {
+            result.index = test;
+            result.found = true;
+            break;
+        }
+    }
+
+    return result;
+}
+
+inline uint32_t rotate_left(uint32_t value, int32_t shift)
+{
+#if COMPILER_MSVC
+    uint32_t result = _rotl(value, shift);
+#else
+    // TODO(scott): test this!
+    shift &= 31;
+    uint32_t result = ((value << shift) | (value >> (32 - shift)));
+#endif
+
+    return result;
 }

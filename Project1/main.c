@@ -10,12 +10,39 @@ typedef int bool;
 #define true (1==1)
 #define false (1==0)
 
-#include "imgui_impl.h"
-
 #define MAX(x,y) (x > y ? x : y)
+#define MIN(x,y) (x < y ? x : y)
 
+#if !defined(COMPILER_MSVC)
+#define COMPILER_MSVC 0
+#endif
+
+#if !defined(COMPILER_LLVM)
+#define COMPILER_LLVM 0
+#endif
+
+#if !COMPILER_MSVC && !COMPILER_LLVM
+#if _MSC_VER
+#undef COMPILER_MSVC
+#define COMPILER_MSVC 1
+#else
+#undef COMPILER_LLVM
+#define COMPILER_LLVM 1
+#endif
+#endif
+
+#if COMPILER_MSVC
+#include <intrin.h>
+#endif
+
+
+#include "math.h"
 #include "math.c"
+#include "memory.h"
 #include "memory.c"
+#include "render.h"
+#include "common.h"
+#include "imgui_impl.h"
 #include "render.c"
 #include "common.c"
 #include "simulation.c"
@@ -63,7 +90,7 @@ static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT paint;
             HDC device_context = BeginPaint(window, &paint);
             WindowDimension dimensions = GetWindowDimension(window);
-            Render(global_render_state, dimensions);
+            render(global_render_state, dimensions);
             SwapBuffers(device_context);
             EndPaint(window, &paint);
         } break;
@@ -156,13 +183,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             global_running = true;
             global_paused = false;
             
-            InitOpenGL(window);
-
             SimState state = { 0 };
             InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
             InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
             global_render_state = &state.render_state;
 
+            InitOpenGL(window);
             ImGui_ImplGlfwGL2_Init(window);
 
             LARGE_INTEGER start_counter, end_counter;
@@ -176,7 +202,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             {
                 Win32ProcessPendingMessages();
 
-                AddStaticRenderObjects(global_render_state);
+                add_static_render_objects(global_render_state);
 
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
@@ -190,10 +216,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                 HDC device_context = GetDC(window);
                 WindowDimension dimensions = GetWindowDimension(window);
-                Render(global_render_state, dimensions);
+                add_dynamic_render_objects(&state, dimensions);
+                render(global_render_state, dimensions);
                 
                 ImGui_ImplGlfwGL2_NewFrame(state.dt);
-                render_imgui_windows(&global_ui_state);
+                render_imgui_windows(&state, &global_paused);
 
                 SwapBuffers(device_context);
                 ReleaseDC(window, device_context);

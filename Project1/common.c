@@ -1,23 +1,14 @@
 
-typedef enum EntityKind {
-    EntityKind_None,
-    EntityKind_Ownship,
-    EntityKind_Aircraft,
-} EntityKind;
 
-typedef struct EntityType {
-    EntityKind kind;
-    Vec3 pos;
-} EntityType;
+static void set_entity_pos(EntityType* entity, Vec3 new_pos)
+{
+    // TODO(scott): flesh this out when we have more coordinate systems, etc.
+    entity->pos = new_pos;
+}
 
-typedef struct SimState {        
-    bool initialized;
+static void set_entity_heading(EntityType* entity, float new_heading)
+{
+    // TODO(scott): flesh this out when we have more coordinate systems, etc.
+    entity->aircraft.heading = new_heading;
+}
 
-    float dt;
-
-    MemoryArena sim_arena;
-    EntityType* entities[1024];
-    uint32_t num_entities;
-
-    RenderState render_state;
-} SimState;

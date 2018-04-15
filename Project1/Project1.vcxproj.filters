@@ -71,5 +71,17 @@
     <ClInclude Include="imgui_impl.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="render.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="memory.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
