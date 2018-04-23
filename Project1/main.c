@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <gl/GL.h>
+#include <gl/GLU.h>
 
 typedef int bool;
 #define true (1==1)
@@ -170,14 +171,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     window_class.lpszClassName = "Project1 Window Class";
     
     if (RegisterClassEx(&window_class))
-    {
-        int width = 600;
-        int height = 800;
-        HWND window = CreateWindow("Project1 Window Class", "Project1 Window",
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
-            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 
-            0, 0, hInstance, 0);
-        
+    {   
+        HWND window = InitOpenGL(hInstance);
+
         if (window)
         {
             global_running = true;
@@ -188,7 +184,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
             global_render_state = &state.render_state;
 
-            InitOpenGL(window);
+            
             ImGui_ImplGlfwGL2_Init(window);
 
             LARGE_INTEGER start_counter, end_counter;

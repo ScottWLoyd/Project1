@@ -2,6 +2,9 @@
 #define TWO_PI 2.0f*PI
 #define PI_OVER_TWO PI*0.5f
 
+#define RADIANS(d) ((d) * PI / 180)
+#define DEGREES(r) ((r) * 180 / PI)
+
 typedef union Vec2 {
     struct {
         float x, y;

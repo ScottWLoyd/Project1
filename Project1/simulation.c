@@ -44,6 +44,42 @@ static void UpdateSimulation(SimState* state)
         state->initialized = true;
     }
 
+    //
+    // Calculate the periodic flags
+    //
+    static float last_one_hertz_time = 0.0f;
+    static float last_five_hertz_time = 0.0f;
+    static float last_ten_hertz_time = 0.0f;
+    static float last_twenty_hertz_time = 0.0f;
+    if (state->dt - last_one_hertz_time > 1.0f)
+    {
+        state->periodic.one_hertz = true;
+        last_one_hertz_time = state->dt;
+    }
+    if (state->dt - last_five_hertz_time > 0.2f)
+    {
+        state->periodic.five_hertz = true;
+        last_five_hertz_time = state->dt;
+    }
+    if (state->dt - last_ten_hertz_time > 0.1f)
+    {
+        state->periodic.ten_hertz = true;
+        last_ten_hertz_time = state->dt;
+    }
+    if (state->dt - last_twenty_hertz_time > 0.05f)
+    {
+        state->periodic.twenty_hertz = true;
+        last_twenty_hertz_time = state->dt;
+    }
+
+    //
+    // Four stages of the simulation:
+    // 1. Unpack inputs from 1553/Ethernet
+    // 2. Execute physics
+    // 3. Process data
+    // 4. Package outputs to 1553/Ethernet
+    //
+
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
         EntityType* entity = state->entities[entity_index];
@@ -61,6 +97,11 @@ static void UpdateSimulation(SimState* state)
                     float delta_pos = state->dt * 10.0f;
                     set_entity_pos(entity, vec3_sub(entity->pos, vec3(delta_pos, delta_pos, 0)));
                 }
+                else if (entity->iff_status == IffStatusType_Friendly)
+                {
+                    float delta_hdg = state->dt * 10.0f;
+                    set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
+                }
 
             } break;
 
@@ -68,4 +109,9 @@ static void UpdateSimulation(SimState* state)
             } break;
         }
     }
+
+    state->periodic.one_hertz = false;
+    state->periodic.five_hertz = false;
+    state->periodic.ten_hertz = false;
+    state->periodic.twenty_hertz = false;
 }

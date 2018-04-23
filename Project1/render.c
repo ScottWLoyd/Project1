@@ -231,28 +231,134 @@ static RenderObject* push_render_object(RenderState* state, RenderObjectType typ
     return obj;
 }
 
-static void InitOpenGL(HWND window)
+static int get_desired_pixel_format(HDC device_context)
 {
+    PIXELFORMATDESCRIPTOR pfd = { 0 };
+    int pixel_format_count = DescribePixelFormat(device_context, 1, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+    // We need to find an ICD OpenGL pixel format, we don't care about any of the
+    // other specifics...
+    for (int pixel_format = 0; pixel_format < pixel_format_count; pixel_format++) 
+    {
+        zero_struct(pfd);
+        DescribePixelFormat(device_context, pixel_format, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+        if (!(pfd.dwFlags & PFD_SUPPORT_OPENGL))
+            continue;
+
+        // ICD pixel formats aren't generic (GDI), nor are they generic accelerated (MCD)
+        if (!((pfd.dwFlags & PFD_GENERIC_FORMAT) || (pfd.dwFlags & PFD_GENERIC_ACCELERATED)))
+            return pixel_format;
+    }
+
+    // No ICD Pixel Format Found?!
+    return 0;
+}
+
+#define WGL_DRAW_TO_WINDOW_ARB 0x2001
+#define WGL_SUPPORT_OPENGL_ARB 0x2010
+#define WGL_DOUBLE_BUFFER_ARB  0x2011
+#define WGL_PIXEL_TYPE_ARB     0x2013
+#define WGL_TYPE_RGBA_ARB      0x202B
+#define WGL_COLOR_BITS_ARB     0x2014
+#define WGL_SAMPLE_BUFFERS_ARB 0x2041
+#define WGL_SAMPLES_ARB        0x2042
+#define GL_MULTISAMPLE         0x809D 
+
+static HWND InitOpenGL(HINSTANCE hInstance)
+{
+    HWND window = CreateWindow("Project1 Window Class", "Dummy Window",
+        WS_DISABLED, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+
     HDC device_context = GetDC(window);
 
     PIXELFORMATDESCRIPTOR pixel_format = { 0 };
-    pixel_format.nSize = sizeof(pixel_format);
+    pixel_format.nSize = sizeof(PIXELFORMATDESCRIPTOR);
     pixel_format.nVersion = 1;
-    pixel_format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-    pixel_format.cColorBits = 32;
-    pixel_format.cAlphaBits = 8;
+    
+    SetPixelFormat(device_context, get_desired_pixel_format(device_context), &pixel_format);
 
-    int pixel_format_index = ChoosePixelFormat(device_context, &pixel_format);
-    PIXELFORMATDESCRIPTOR suggested_pixel_format;
-    DescribePixelFormat(device_context, pixel_format_index, sizeof(PIXELFORMATDESCRIPTOR), &suggested_pixel_format);
-    SetPixelFormat(device_context, pixel_format_index, &suggested_pixel_format);
-
+    // If we fail, don't bother trying to initialize any extensions...
     HGLRC opengl_rc = wglCreateContext(device_context);
+    if (!opengl_rc)
+    {
+        // TODO(scott): logging...
+        DestroyWindow(window);
+        assert(false);
+    }
+    
     if (!wglMakeCurrent(device_context, opengl_rc))
     {
-        assert(!"Failed to create OpenGL context!");
+        // TODO(scott): logging...
+        DestroyWindow(window);
+        assert(false);
     }
-    ReleaseDC(window, device_context);
+
+    // load extensions
+    const char *(WINAPI * wglGetExtensionsStringARB)(HDC hdc);
+    wglGetExtensionsStringARB = wglGetProcAddress("wglGetExtensionsStringARB");
+    if (!wglGetExtensionsStringARB)
+    {
+        // TODO(scott): logging...
+        assert(false);
+    }
+    const GLubyte* extensions = (const GLubyte*)wglGetExtensionsStringARB(device_context);
+
+    bool (*wglChoosePixelFormatARB)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, 
+        UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+    wglChoosePixelFormatARB = wglGetProcAddress("wglChoosePixelFormatARB");
+    if (!wglChoosePixelFormatARB)
+    {
+        // TODO(scott): logging...
+        assert(false);
+    }
+
+    // init the pixel format
+    int attribs[] = {
+        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+        WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+        WGL_COLOR_BITS_ARB, 32,
+        WGL_SAMPLE_BUFFERS_ARB, 1, // Number of buffers (must be 1 at time of writing)
+        WGL_SAMPLES_ARB, 4,        // Number of samples
+        0, // End
+    };
+    int formats[20];
+    uint32_t num_formats;
+    wglChoosePixelFormatARB(device_context, attribs, NULL, sizeof(formats), formats, &num_formats);
+
+    // Cleanup dummy context
+    wglMakeCurrent(NULL, NULL);
+    wglDeleteContext(opengl_rc);
+    DestroyWindow(window);
+
+
+    // Create the actual window & context
+    window = CreateWindow("Project1 Window Class", "Project1 Window",
+        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+        0, 0, hInstance, 0);
+
+    device_context = GetDC(window);
+    // TODO(scott): check for a match on the pixel format here
+    SetPixelFormat(device_context, formats[0], &pixel_format);
+
+    // If we fail, don't bother trying to initialize any extensions...
+    opengl_rc = wglCreateContext(device_context);
+    if (!opengl_rc)
+    {
+        // TODO(scott): logging...
+        DestroyWindow(window);
+        assert(false);
+    }
+
+    if (!wglMakeCurrent(device_context, opengl_rc))
+    {
+        // TODO(scott): logging...
+        DestroyWindow(window);
+        assert(false);
+    }
 
     // Load textures
     CreateTexture("../res/f-15-small.bmp", "f-15");
@@ -261,6 +367,9 @@ static void InitOpenGL(HWND window)
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_MULTISAMPLE);
+
+    return window;
 }
 
 
@@ -309,6 +418,7 @@ static void add_aircraft_render_object(SimState* state, uint32_t entity_index)
     Bitmap* bmp = get_bitmap(quad->textured_rect.texture_id);
     quad->textured_rect.dim = vec2(bmp->width, bmp->height);
     quad->textured_rect.scale = vec2(1, 1);
+    quad->textured_rect.rotation = entity->aircraft.heading;
     quad->color = iff_status_to_color[entity->iff_status];
     if (entity_index == state->ownship_index)
     {
@@ -384,17 +494,25 @@ static void render(RenderState* state, WindowDimension dimensions)
                 glEnable(GL_TEXTURE_2D);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                // NOTE(scott): for pre-multiplied alpha
                 //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
                 glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
 
-                glBegin(GL_TRIANGLES);
-
+                glMatrixMode(GL_MODELVIEW);
                 Vec2 center = { (dimensions.width * 0.5f) + object->textured_rect.center.x, 
                                 (dimensions.height * 0.5f) + object->textured_rect.center.y };
-                Vec2 min_p = { center.x - object->textured_rect.dim.x / 2, center.y - object->textured_rect.dim.y / 2 };
-                Vec2 max_p = { center.x + object->textured_rect.dim.x / 2, center.y + object->textured_rect.dim.y / 2 };
+                glPushMatrix();
+                glTranslatef(center.x, center.y, 0);
+                //Vec2 min_p = { center.x - object->textured_rect.dim.x / 2, center.y - object->textured_rect.dim.y / 2 };
+                //Vec2 max_p = { center.x + object->textured_rect.dim.x / 2, center.y + object->textured_rect.dim.y / 2 };
+                float rads = object->textured_rect.rotation;
+                glRotatef(rads, 0, 0, 1);
+                Vec2 min_p = { -object->textured_rect.dim.x / 2, -object->textured_rect.dim.y / 2 };
+                Vec2 max_p = { object->textured_rect.dim.x / 2, object->textured_rect.dim.y / 2 };
+                
 
+                glBegin(GL_TRIANGLES);
                 glColor3f(object->color.r, object->color.g, object->color.b);
                 glTexCoord2f(0.0f, 0.0f);
                 glVertex2f(min_p.x, min_p.y);
@@ -411,6 +529,7 @@ static void render(RenderState* state, WindowDimension dimensions)
                 glVertex2f(min_p.x, max_p.y);
 
                 glEnd();
+                glPopMatrix();
                 
                 glDisable(GL_TEXTURE_2D);
 

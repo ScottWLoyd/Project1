@@ -38,6 +38,16 @@ typedef struct SimState {
 
     float dt;
 
+    // These are set to true for the frame in which they cross a 
+    // periodic threshold. They are then set to false at the end
+    // of the frame.
+    struct {
+        bool one_hertz;
+        bool five_hertz;
+        bool ten_hertz;
+        bool twenty_hertz;
+    } periodic;
+
     MemoryArena sim_arena;
     EntityType* entities[1024];
     uint32_t num_entities;
