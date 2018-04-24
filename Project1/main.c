@@ -172,18 +172,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     
     if (RegisterClassEx(&window_class))
     {   
+        SimState state = { 0 };
+        InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
+        InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
+        global_render_state = &state.render_state;
+
         HWND window = InitOpenGL(hInstance);
 
         if (window)
         {
             global_running = true;
             global_paused = false;
-            
-            SimState state = { 0 };
-            InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
-            InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
-            global_render_state = &state.render_state;
-
             
             ImGui_ImplGlfwGL2_Init(window);
 

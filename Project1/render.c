@@ -29,19 +29,11 @@ static Bitmap* CrossLoadBitmap(char* file_path)
         assert(blue_scan.found);
         assert(alpha_scan.found);
 
-#if 1
         // ARGB
         int32_t red_shift = 16 - (int32_t)red_scan.index;
         int32_t green_shift = 8 - (int32_t)green_scan.index;
         int32_t blue_shift = 0 - (int32_t)blue_scan.index;
         int32_t alpha_shift = 24 - (int32_t)alpha_scan.index;
-#else
-        // BGRA
-        int32_t red_shift = 8 - (int32_t)red_scan.index;
-        int32_t green_shift = 16 - (int32_t)green_scan.index;
-        int32_t blue_shift = 24 - (int32_t)blue_scan.index;
-        int32_t alpha_shift = 0 - (int32_t)alpha_scan.index;
-#endif
 
         uint32_t *source_dest = pixels;
         for (int32_t y = 0; y < header->height; y++)
@@ -60,110 +52,6 @@ static Bitmap* CrossLoadBitmap(char* file_path)
 
     return result;
 }
-#if 0
-#pragma pack(push, 1)
-typedef struct DibHeader {
-    uint32_t header_size;
-    uint32_t bitmap_width;
-    uint32_t bitmap_height;
-    uint16_t color_planes;
-    uint16_t bits_per_pixel;
-    uint32_t compression;
-    uint32_t image_size;
-    int32_t horizontal_resolution; // pixel/meter
-    int32_t vertical_resolution; // pixel/meter
-    uint32_t num_colors;
-    uint32_t important_colors;
-} DibHeader;
-
-typedef struct DibHeaderV4 {
-    uint32_t header_size;
-    int32_t bitmap_width;
-    int32_t bitmap_height;
-    uint16_t color_planes;
-    uint16_t bits_per_pixel;
-    uint32_t compression;
-    uint32_t image_size;
-    int32_t horizontal_resolution; // pixel/meter
-    int32_t vertical_resolution; // pixel/meter
-    uint32_t num_colors;
-    uint32_t important_colors;
-    uint32_t red_mask;
-    uint32_t green_mask;
-    uint32_t blue_mask;
-    uint32_t alpha_mask;
-    uint32_t cs_type;
-    int endpoints;
-    uint32_t gamma_red;
-    uint32_t gamma_green;
-    uint32_t gamma_blue;
-} DibHeaderV4;
-
-typedef struct DibHeaderV5 {
-    uint32_t header_size;
-    int32_t bitmap_width;
-    int32_t bitmap_height;
-    uint16_t color_planes;
-    uint16_t bits_per_pixel;
-    uint32_t compression;
-    uint32_t image_size;
-    int32_t horizontal_resolution; // pixel/meter
-    int32_t vertical_resolution; // pixel/meter
-    uint32_t num_colors;
-    uint32_t important_colors;
-    uint32_t red_mask;
-    uint32_t green_mask;
-    uint32_t blue_mask;
-    uint32_t alpha_mask;
-    uint32_t cs_type;
-    int endpoints;
-    uint32_t gamma_red;
-    uint32_t gamma_green;
-    uint32_t gamma_blue;
-    uint32_t intent;
-    uint32_t profile_data;
-    uint32_t profile_size;
-    uint32_t reserved;
-} DibHeaderV5;
-
-typedef struct BitmapHeader {
-    char bmp_identifier[2];
-    uint32_t size_in_bytes;
-    uint16_t reserved[2];
-    uint32_t pixel_offset;
-} BitmapHeader;
-
-typedef struct Bitmap {
-    size_t width;
-    size_t height;
-    void* pixels;   // 32 bit pixels, ARGB
-} Bitmap;
-#pragma pack(pop)
-
-static Bitmap CrossLoadBitmap(char* file_path)
-{   
-    Bitmap result = { 0 };
-    FileContents contents = ReadEntireFile(file_path);
-    if (contents.success)
-    {
-        char* ptr = contents.data;
-        BitmapHeader* header = (BitmapHeader*)ptr;
-        ptr += sizeof(BitmapHeader);
-        uint32_t size = *(uint32_t*)ptr;
-
-        DibHeader* dib_header = (DibHeader*)ptr;
-        result.width = dib_header->bitmap_width;
-        result.height = dib_header->bitmap_height;
-
-        assert(header->pixel_offset == (sizeof(BitmapHeader) + dib_header->header_size));
-        
-        ptr = (char*)contents.data + header->pixel_offset;
-        result.pixels = ptr;
-    }
-
-    return result;
-}
-#endif
 
 static TextureEntry* cached_textures;
 
@@ -184,10 +72,10 @@ static void CreateTexture(char* file_path, char* key)
     
     glGenTextures(1, &entry.id);
     glBindTexture(GL_TEXTURE_2D, entry.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, entry.bitmap->width, entry.bitmap->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, (void*)entry.bitmap->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)entry.bitmap->width, (GLsizei)entry.bitmap->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, (void*)entry.bitmap->pixels);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -265,6 +153,10 @@ static int get_desired_pixel_format(HDC device_context)
 #define WGL_SAMPLES_ARB        0x2042
 #define GL_MULTISAMPLE         0x809D 
 
+#define MAX_FORMATS 20
+typedef const char *(WINAPI * PWGLGETEXTENSIONSSTRING)(HDC hdc); 
+typedef bool(*PWGLCHOOSEPIXELFORMATARB)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+
 static HWND InitOpenGL(HINSTANCE hInstance)
 {
     HWND window = CreateWindow("Project1 Window Class", "Dummy Window",
@@ -295,18 +187,15 @@ static HWND InitOpenGL(HINSTANCE hInstance)
     }
 
     // load extensions
-    const char *(WINAPI * wglGetExtensionsStringARB)(HDC hdc);
-    wglGetExtensionsStringARB = wglGetProcAddress("wglGetExtensionsStringARB");
+    PWGLGETEXTENSIONSSTRING wglGetExtensionsStringARB = (PWGLGETEXTENSIONSSTRING)wglGetProcAddress("wglGetExtensionsStringARB");
     if (!wglGetExtensionsStringARB)
     {
         // TODO(scott): logging...
         assert(false);
     }
     const GLubyte* extensions = (const GLubyte*)wglGetExtensionsStringARB(device_context);
-
-    bool (*wglChoosePixelFormatARB)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, 
-        UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-    wglChoosePixelFormatARB = wglGetProcAddress("wglChoosePixelFormatARB");
+        
+    PWGLCHOOSEPIXELFORMATARB wglChoosePixelFormatARB = (PWGLCHOOSEPIXELFORMATARB)wglGetProcAddress("wglChoosePixelFormatARB");
     if (!wglChoosePixelFormatARB)
     {
         // TODO(scott): logging...
@@ -324,9 +213,9 @@ static HWND InitOpenGL(HINSTANCE hInstance)
         WGL_SAMPLES_ARB, 4,        // Number of samples
         0, // End
     };
-    int formats[20];
+    int formats[MAX_FORMATS];
     uint32_t num_formats;
-    wglChoosePixelFormatARB(device_context, attribs, NULL, sizeof(formats), formats, &num_formats);
+    wglChoosePixelFormatARB(device_context, attribs, NULL, MAX_FORMATS, formats, &num_formats);
 
     // Cleanup dummy context
     wglMakeCurrent(NULL, NULL);
@@ -371,6 +260,16 @@ static HWND InitOpenGL(HINSTANCE hInstance)
 
     return window;
 }
+#undef WGL_DRAW_TO_WINDOW_ARB 
+#undef WGL_SUPPORT_OPENGL_ARB 
+#undef WGL_DOUBLE_BUFFER_ARB  
+#undef WGL_PIXEL_TYPE_ARB     
+#undef WGL_TYPE_RGBA_ARB      
+#undef WGL_COLOR_BITS_ARB     
+#undef WGL_SAMPLE_BUFFERS_ARB 
+#undef WGL_SAMPLES_ARB        
+#undef GL_MULTISAMPLE
+#undef MAX_FORMATS
 
 
 static void draw_circle(int center_x, int center_y, float radius, Vec3 color)
@@ -406,9 +305,8 @@ static GLuint aircraft_kind_to_texture_id(AircraftKind kind)
 
 static Vec3 iff_status_to_color[IffStatusType_Count];
 
-static void add_aircraft_render_object(SimState* state, uint32_t entity_index)
+static void add_aircraft_render_object(SimState* state, EntityType* entity, float rotation)
 {
-    EntityType* entity = state->entities[entity_index];
     RenderObject* quad = push_render_object(&state->render_state, RenderObjectTexturedRect);
 
     // TODO(scott): convert ECEF or NED coordinates to screen space
@@ -416,13 +314,13 @@ static void add_aircraft_render_object(SimState* state, uint32_t entity_index)
     quad->textured_rect.texture_id = aircraft_kind_to_texture_id(entity->aircraft.kind);
 
     Bitmap* bmp = get_bitmap(quad->textured_rect.texture_id);
-    quad->textured_rect.dim = vec2(bmp->width, bmp->height);
+    quad->textured_rect.dim = vec2((float)bmp->width, (float)bmp->height);
     quad->textured_rect.scale = vec2(1, 1);
-    quad->textured_rect.rotation = entity->aircraft.heading;
+    quad->textured_rect.rotation = rotation;
     quad->color = iff_status_to_color[entity->iff_status];
-    if (entity_index == state->ownship_index)
+    if (entity->kind == EntityKind_Ownship)
     {
-        quad->color = ColorCyan;
+        quad->color = ColorBlue;
     }
 }
 
@@ -437,15 +335,20 @@ static void add_static_render_objects(RenderState* state)
 
 static void add_dynamic_render_objects(SimState* state, WindowDimension dimensions)
 {
+    EntityType* ownship = NULL;
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
-        switch (state->entities[entity_index]->kind)
+        EntityType* entity = state->entities[entity_index];
+        switch (entity->kind)
         {
-            case EntityKind_Ownship:
+            case EntityKind_Ownship: {
+                ownship = state->entities[entity_index];
+                add_aircraft_render_object(state, entity, 0);
+            } break;
+
             case EntityKind_Aircraft: {
-
-                add_aircraft_render_object(state, entity_index);
-
+                float rotation = -(entity->aircraft.heading - ownship->aircraft.heading);
+                add_aircraft_render_object(state, entity, rotation);
             } break;
 
             default: {
@@ -504,10 +407,8 @@ static void render(RenderState* state, WindowDimension dimensions)
                                 (dimensions.height * 0.5f) + object->textured_rect.center.y };
                 glPushMatrix();
                 glTranslatef(center.x, center.y, 0);
-                //Vec2 min_p = { center.x - object->textured_rect.dim.x / 2, center.y - object->textured_rect.dim.y / 2 };
-                //Vec2 max_p = { center.x + object->textured_rect.dim.x / 2, center.y + object->textured_rect.dim.y / 2 };
-                float rads = object->textured_rect.rotation;
-                glRotatef(rads, 0, 0, 1);
+                float degrees = object->textured_rect.rotation;
+                glRotatef(degrees, 0, 0, 1);
                 Vec2 min_p = { -object->textured_rect.dim.x / 2, -object->textured_rect.dim.y / 2 };
                 Vec2 max_p = { object->textured_rect.dim.x / 2, object->textured_rect.dim.y / 2 };
                 
@@ -540,7 +441,7 @@ static void render(RenderState* state, WindowDimension dimensions)
                 Vec2 center = { (dimensions.width * 0.5f) + object->circle.center.x,
                     (dimensions.height * 0.5f) + object->circle.center.y };
                 float radius = 0.5f * min_dimension * object->circle.radius;
-                draw_circle(center.x, center.y, radius, object->color);
+                draw_circle((int)center.x, (int)center.y, radius, object->color);
                 
             } break;
 

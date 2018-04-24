@@ -87,5 +87,7 @@ typedef struct RenderState {
 
     RenderObject* render_objects[MAX_NUM_RENDER_OBJECTS];
     uint32_t num_render_objects;
+
+    float scope_range;
 } RenderState;
 

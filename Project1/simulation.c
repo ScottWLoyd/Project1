@@ -36,6 +36,11 @@ static void UpdateSimulation(SimState* state)
         state->entities[entity_index]->aircraft.kind = AircraftKind_F22;
         state->entities[entity_index]->iff_status = IffStatusType_Friendly;
 
+        entity_index = add_entity(state, EntityKind_Aircraft);
+        state->entities[entity_index]->pos = vec3(0, 150, 0);
+        state->entities[entity_index]->aircraft.kind = AircraftKind_F15;
+        state->entities[entity_index]->iff_status = IffStatusType_Friendly;
+
         iff_status_to_color[IffStatusType_None] = ColorWhite;
         iff_status_to_color[IffStatusType_Friendly] = ColorGreen;
         iff_status_to_color[IffStatusType_Neutral] = ColorYellow;
@@ -87,7 +92,7 @@ static void UpdateSimulation(SimState* state)
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-
+                set_entity_heading(entity, 90.0f);
             } break;
 
             case EntityKind_Aircraft: {
@@ -99,8 +104,11 @@ static void UpdateSimulation(SimState* state)
                 }
                 else if (entity->iff_status == IffStatusType_Friendly)
                 {
-                    float delta_hdg = state->dt * 10.0f;
-                    set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
+                    if (entity->aircraft.kind == AircraftKind_F22)
+                    {
+                        float delta_hdg = state->dt * 10.0f;
+                        set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
+                    }
                 }
 
             } break;

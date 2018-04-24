@@ -73,6 +73,10 @@ static FileContents ReadEntireFile(char* file_path)
     FileContents result = { 0 };
 
     FILE* file = fopen(file_path, "rb");
+    if (!file)
+    {
+        assert(!"Unable to find file! Check path");
+    }
     fseek(file, 0, SEEK_END);
     long len = ftell(file);
     rewind(file);

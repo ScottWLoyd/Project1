@@ -322,7 +322,7 @@ void ImGui_ImplGlfwGL2_NewFrame(float dt)
     {
         if (io.WantMoveMouse)
         {
-            SetCursorPos(io.MousePos.x, io.MousePos.y);   // Set mouse position if requested by io.WantMoveMouse flag (used when io.NavMovesTrue is enabled by user and using directional navigation)
+            SetCursorPos((int)io.MousePos.x, (int)io.MousePos.y);   // Set mouse position if requested by io.WantMoveMouse flag (used when io.NavMovesTrue is enabled by user and using directional navigation)
         }
         else
         {
