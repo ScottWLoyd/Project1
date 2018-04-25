@@ -14,28 +14,22 @@
 // https://github.com/ocornut/imgui
 
 
-typedef struct UiState {
+struct UiState {
     float dt;
-} UiState;
+};
 
-typedef enum UiKeyState {
+enum UiKeyState {
     UiKeyPressed,
     UiKeyReleased
-} UiKeyState;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-    void ImGui_MouseButtonCallback(int button, bool pressed); 
-    void ImGui_ImplGlfw_CharCallback(unsigned int c);
-    void ImGui_ImplGlfw_KeyCallback(uint32_t key, UiKeyState action);
-    bool ImGui_ImplGlfwGL2_Init(HWND window);
-    void ImGui_ImplGlfwGL2_Shutdown();
-    void ImGui_ImplGlfwGL2_NewFrame(float dt);
-    void render_imgui_windows(SimState*, bool*);
-#ifdef __cplusplus
 };
-#endif
+
+void ImGui_MouseButtonCallback(int button, bool pressed); 
+void ImGui_ImplGlfw_CharCallback(unsigned int c);
+void ImGui_ImplGlfw_KeyCallback(uint32_t key, UiKeyState action);
+bool ImGui_ImplGlfwGL2_Init(HWND window);
+void ImGui_ImplGlfwGL2_Shutdown();
+void ImGui_ImplGlfwGL2_NewFrame(float dt);
+void render_imgui_windows(SimState*, bool*);
 
 #if 0
 //struct GLFWwindow;

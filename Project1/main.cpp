@@ -7,13 +7,6 @@
 #include <gl/GL.h>
 #include <gl/GLU.h>
 
-typedef int bool;
-#define true (1==1)
-#define false (1==0)
-
-#define MAX(x,y) (x > y ? x : y)
-#define MIN(x,y) (x < y ? x : y)
-
 #if !defined(COMPILER_MSVC)
 #define COMPILER_MSVC 0
 #endif
@@ -36,17 +29,19 @@ typedef int bool;
 #include <intrin.h>
 #endif
 
+#define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
+#include "stb_truetype.h"
 
 #include "math.h"
-#include "math.c"
+#include "math.cpp"
 #include "memory.h"
-#include "memory.c"
+#include "memory.cpp"
 #include "render.h"
 #include "common.h"
 #include "imgui_impl.h"
-#include "render.c"
-#include "common.c"
-#include "simulation.c"
+#include "render.cpp"
+#include "common.cpp"
+#include "simulation.cpp"
 
 static bool global_running;
 static bool global_paused;
@@ -176,8 +171,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
         InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
         global_render_state = &state.render_state;
-
+        
         HWND window = InitOpenGL(hInstance);
+        init_render_state(global_render_state);
 
         if (window)
         {
@@ -192,7 +188,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             int64_t counter_frequency;
             QueryPerformanceFrequency(&frequency_result);
             counter_frequency = frequency_result.QuadPart;
-
+            
             while (global_running)
             {
                 Win32ProcessPendingMessages();
@@ -204,7 +200,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 start_counter = end_counter;
                 state.dt = global_ui_state.dt = elapsed_seconds;
 
-                if (!global_paused)
+                if (!global_paused || !state.initialized)
                 {
                     UpdateSimulation(&state);
                 }
@@ -213,13 +209,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 WindowDimension dimensions = GetWindowDimension(window);
                 add_dynamic_render_objects(&state, dimensions);
                 render(global_render_state, dimensions);
-                
+
                 ImGui_ImplGlfwGL2_NewFrame(state.dt);
                 render_imgui_windows(&state, &global_paused);
 
                 SwapBuffers(device_context);
                 ReleaseDC(window, device_context);
-                
             }
         }
     }

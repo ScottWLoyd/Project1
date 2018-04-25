@@ -53,12 +53,14 @@ static Bitmap* CrossLoadBitmap(char* file_path)
     return result;
 }
 
-static TextureEntry* cached_textures;
+static TextureEntry cached_textures[20];
+static size_t num_cached_textures = 0;
 
 static void CreateTexture(char* file_path, char* key)
 {
-    for (TextureEntry* it = cached_textures; it != buf_end(cached_textures); it++)
+    for (size_t texture_index=0; texture_index < num_cached_textures; texture_index++)
     {
+        TextureEntry* it = &cached_textures[texture_index];
         if (strcmp(it->key, key) == 0)
         {
             assert(!"Key already exists for texture!");
@@ -80,13 +82,15 @@ static void CreateTexture(char* file_path, char* key)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     
-    buf_push(cached_textures, entry);
+    assert(num_cached_textures < ArrayCount(cached_textures));
+    cached_textures[num_cached_textures++] = entry;
 }
 
 static GLuint get_texture_id(char* key)
 {
-    for (TextureEntry* it = cached_textures; it != buf_end(cached_textures); it++)
+    for (size_t texture_index = 0; texture_index < num_cached_textures; texture_index++)
     {
+        TextureEntry* it = &cached_textures[texture_index];
         if (strcmp(it->key, key) == 0)
         {
             return it->id;
@@ -98,8 +102,9 @@ static GLuint get_texture_id(char* key)
 
 static Bitmap* get_bitmap(GLuint texture_id)
 {
-    for (TextureEntry* it = cached_textures; it != buf_end(cached_textures); it++)
+    for (size_t texture_index = 0; texture_index < num_cached_textures; texture_index++)
     {
+        TextureEntry* it = &cached_textures[texture_index];
         if (it->id == texture_id)
         {
             return it->bitmap;
@@ -111,7 +116,7 @@ static Bitmap* get_bitmap(GLuint texture_id)
 static RenderObject* push_render_object(RenderState* state, RenderObjectType type)
 {
     assert(state->num_render_objects < MAX_NUM_RENDER_OBJECTS);
-    RenderObject* obj = push_struct(&state->arena, RenderObject);
+    RenderObject* obj = (RenderObject*)push_struct(&state->arena, RenderObject);
     obj->type = type;
 
     state->render_objects[state->num_render_objects++] = obj;
@@ -248,12 +253,7 @@ static HWND InitOpenGL(HINSTANCE hInstance)
         DestroyWindow(window);
         assert(false);
     }
-
-    // Load textures
-    CreateTexture("../res/f-15-small.bmp", "f-15");
-    CreateTexture("../res/f-22-small.bmp", "f-22");
-    CreateTexture("../res/su-35-small.bmp", "su-35");
-
+    
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_MULTISAMPLE);
@@ -271,6 +271,33 @@ static HWND InitOpenGL(HINSTANCE hInstance)
 #undef GL_MULTISAMPLE
 #undef MAX_FORMATS
 
+
+static stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
+
+static void init_render_state(RenderState* state)
+{
+    unsigned char* ttf_buffer = (unsigned char*)xmalloc(1 << 20);
+    unsigned char* temp_bitmap = (unsigned char*)xmalloc(512 * 512);
+    fread(ttf_buffer, 1, 1 << 20, fopen("c:/windows/fonts/arial.ttf", "rb"));
+    stbtt_BakeFontBitmap(ttf_buffer, 0, 32.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
+                                                                                     // can free ttf_buffer at this point
+    free(ttf_buffer);
+
+    glGenTextures(1, &state->font_texture_id);
+    glBindTexture(GL_TEXTURE_2D, state->font_texture_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
+    // can free temp_bitmap at this point
+    free(temp_bitmap);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    // Load textures
+    CreateTexture("../res/f-15-small.bmp", "f-15");
+    CreateTexture("../res/f-22-small.bmp", "f-22");
+    CreateTexture("../res/su-35-small.bmp", "su-35");
+
+    state->scope_range = 40;
+}
 
 static void draw_circle(int center_x, int center_y, float radius, Vec3 color)
 {
@@ -331,6 +358,11 @@ static void add_static_render_objects(RenderState* state)
     obj->circle.center = vec2(0, 0);
     obj->circle.radius = 1.0f;
     obj->color = ColorWhite;
+
+    obj = push_render_object(state, RenderObjectText);
+    sprintf(obj->text.text, "%d", (int)state->scope_range);
+    obj->text.x = 50;
+    obj->text.y = 50;
 }
 
 static void add_dynamic_render_objects(SimState* state, WindowDimension dimensions)
@@ -413,21 +445,12 @@ static void render(RenderState* state, WindowDimension dimensions)
                 Vec2 max_p = { object->textured_rect.dim.x / 2, object->textured_rect.dim.y / 2 };
                 
 
-                glBegin(GL_TRIANGLES);
+                glBegin(GL_QUADS);
                 glColor3f(object->color.r, object->color.g, object->color.b);
-                glTexCoord2f(0.0f, 0.0f);
-                glVertex2f(min_p.x, min_p.y);
-                glTexCoord2f(1.0f, 0.0f);
-                glVertex2f(max_p.x, min_p.y);
-                glTexCoord2f(1.0f, 1.0f);
-                glVertex2f(max_p.x, max_p.y);
-
-                glTexCoord2f(0.0f, 0.0f);
-                glVertex2f(min_p.x, min_p.y);
-                glTexCoord2f(1.0f, 1.0f);
-                glVertex2f(max_p.x, max_p.y);
-                glTexCoord2f(0.0f, 1.0f);
-                glVertex2f(min_p.x, max_p.y);
+                glTexCoord2f(0.0f, 0.0f); glVertex2f(min_p.x, min_p.y);
+                glTexCoord2f(1.0f, 0.0f); glVertex2f(max_p.x, min_p.y);
+                glTexCoord2f(1.0f, 1.0f); glVertex2f(max_p.x, max_p.y);                
+                glTexCoord2f(0.0f, 1.0f); glVertex2f(min_p.x, max_p.y);
 
                 glEnd();
                 glPopMatrix();
@@ -443,6 +466,31 @@ static void render(RenderState* state, WindowDimension dimensions)
                 float radius = 0.5f * min_dimension * object->circle.radius;
                 draw_circle((int)center.x, (int)center.y, radius, object->color);
                 
+            } break;
+
+            case RenderObjectText: {
+                
+                Vec2 center = { (dimensions.width * 0.5f) + object->textured_rect.center.x,
+                    (dimensions.height * 0.5f) + object->textured_rect.center.y };
+                float x = (dimensions.width * 0.5f) + (min_dimension * 0.4f);
+                float y = dimensions.height - 20.0f;
+                // origin at center, units in screen pixels
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, state->font_texture_id);
+                glBegin(GL_QUADS);
+                char* text = object->text.text;
+                while (*text) {
+                    if (*text >= 32 && *text < 128) {
+                        stbtt_aligned_quad q;
+                        stbtt_GetBakedQuad(cdata, 512, 512, *text - 32, &x, &y, &q, 1);//1=opengl & d3d10+,0=d3d9
+                        glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y0);
+                        glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y0);
+                        glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y1);
+                        glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y1);
+                    }
+                    ++text;
+                }
+                glEnd();
             } break;
 
             default: {

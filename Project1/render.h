@@ -8,19 +8,19 @@ const Vec3 ColorWhite = { 1.0f, 1.0f, 1.0f };
 const Vec3 ColorBlack = { 0.0f, 0.0f, 0.0f };
 
 
-typedef struct WindowDimension {
+struct WindowDimension {
     int width;
     int height;
-} WindowDimension;
+};
 
-typedef struct Bitmap {
+struct Bitmap {
     size_t width;
     size_t height;
     void* pixels;   // 32 bit pixels, ARGB
-} Bitmap;
+};
 
 #pragma pack(push, 1)
-typedef struct bitmap_header
+struct bitmap_header
 {
     uint16_t file_type;
     uint32_t file_size;
@@ -42,23 +42,23 @@ typedef struct bitmap_header
     uint32_t red_mask;
     uint32_t green_mask;
     uint32_t blue_mask;
-} bitmap_header;
+};
 #pragma pack(pop)
 
-typedef struct TextureEntry {
+struct TextureEntry {
     char* key;
     GLuint id;
     Bitmap* bitmap;
-} TextureEntry;
+};
 
-
-typedef enum RenderObjectType {
+enum RenderObjectType {
     RenderObjectTexturedRect,
     RenderObjectCircle,
     RenderObjectLine,
-} RenderObjectType;
+    RenderObjectText,
+};
 
-typedef struct RenderObject {
+struct RenderObject {
     RenderObjectType type;
     Vec3 color;
     union {
@@ -77,17 +77,25 @@ typedef struct RenderObject {
             Vec2 start;
             Vec2 end;
         } line;
+        struct {
+            char text[20];
+            float size;
+            float x;
+            float y;
+        } text;
     };
-} RenderObject;
+};
 
 #define MAX_NUM_RENDER_OBJECTS 1024
 
-typedef struct RenderState {
+struct RenderState {
+    int scope_range;
     MemoryArena arena;
 
     RenderObject* render_objects[MAX_NUM_RENDER_OBJECTS];
     uint32_t num_render_objects;
 
-    float scope_range;
-} RenderState;
+    GLuint font_texture_id;
+
+};
 

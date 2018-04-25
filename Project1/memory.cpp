@@ -41,7 +41,7 @@ static void* memdup(void* src, size_t size)
 
 static void InitializeMemoryArena(MemoryArena* arena, size_t size)
 {
-    arena->base = xmalloc(size);
+    arena->base = (char*)xmalloc(size);
     arena->next = arena->base;
     arena->size = size;
 }
@@ -92,7 +92,7 @@ static FileContents ReadEntireFile(char* file_path)
     return result;
 }
 
-
+#if 0
 #define buf__hdr(b) ((BufHdr*)((char*)(b) - offsetof(BufHdr, buf)))
 
 #define buf_len(b)  ((b) ? buf__hdr(b)->len : 0)
@@ -143,6 +143,7 @@ char* buf__printf(char* buf, const char* fmt, ...)
     buf__hdr(buf)->len += n;
     return buf;
 }
+#endif
 
 inline BitScanResult find_least_significant_set_bit(uint32_t value)
 {

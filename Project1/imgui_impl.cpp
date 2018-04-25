@@ -42,13 +42,11 @@ void render_imgui_windows(SimState* state, bool* paused)
     // 1. Show a simple window.
     // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
     {
-        static float f = 0.0f;
         ImGui::Text("dt = %f", state->dt);
         //ImGui::Checkbox("lmouse:", &state->mouse_buttons_pressed[0]);
         
         POINT mouse_pos = get_mouse_position_in_client();
         ImGui::Text("mouse: %d, %d", mouse_pos.x, mouse_pos.y);
-        ImGui::InputFloat("input:", &f);
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -56,10 +54,15 @@ void render_imgui_windows(SimState* state, bool* paused)
         {
             *paused = !*paused;
         }
-
+        ImGui::SameLine();
         if (ImGui::Button("Reset"))
         {
             state->initialized = false;
+        }
+
+        if (ImGui::InputInt("Scope Range", &state->render_state.scope_range, 5, 20, 0))
+        {
+            CLAMP(5, state->render_state.scope_range, 360);
         }
     }
 

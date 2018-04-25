@@ -1,39 +1,40 @@
 
-typedef enum AircraftKind {
+enum AircraftKind {
     AircraftKind_F15,
     AircraftKind_F22,
     AircraftKind_SU35,
-} AircraftKind;
+};
 
-typedef enum IffStatusType {
+enum IffStatusType {
     IffStatusType_None,
     IffStatusType_Friendly,
     IffStatusType_Neutral,
     IffStatusType_Hostile,
 
     IffStatusType_Count,
-} IffStatusType;
+};
 
-typedef enum EntityKind {
+enum EntityKind {
     EntityKind_None,
     EntityKind_Ownship,
     EntityKind_Aircraft,
     EntityKind_Symbol,
-} EntityKind;
+};
 
-typedef struct EntityType {
+struct EntityType {
     EntityKind kind;
-    Vec3 pos;
     IffStatusType iff_status;
+    Vec3 pos;   // lat, lon, alt
+    Vec3 relative_pos; // north, east, down
     union {
         struct {
             AircraftKind kind;
             float heading;
         } aircraft;
     };
-} EntityType;
+};
 
-typedef struct SimState {
+struct SimState {
     bool initialized;
 
     float dt;
@@ -55,4 +56,4 @@ typedef struct SimState {
     uint32_t ownship_index;
 
     RenderState render_state;
-} SimState;
+};

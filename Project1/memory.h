@@ -1,20 +1,26 @@
 
 #define KILOBYTES(b) ((b) * 1024)
 #define MEGABYTES(b) ((b) * 1024 * 1024)
-typedef struct MemoryArena {
+
+
+struct MemoryArena {
     char* base;
     char* next;
     size_t size;
-} MemoryArena;
+};
 
-typedef struct FileContents {
+struct FileContents {
     size_t len;
     void* data;
     bool success;
-} FileContents;
+};
 
+#if 0
 // Stretchy buffers
-typedef struct BufHdr
+#ifndef __cplusplus
+typedef 
+#endif
+struct BufHdr
 {
     size_t len;
     size_t cap;
@@ -23,9 +29,14 @@ typedef struct BufHdr
 #else
     char buf[0];
 #endif
-} BufHdr;
+} 
+#ifndef __cplusplus
+BufHdr
+#endif
+;
+#endif
 
-typedef struct BitScanResult {
+struct BitScanResult {
     bool found;
     uint32_t index;
-} BitScanResult;
+};

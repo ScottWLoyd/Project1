@@ -5,15 +5,19 @@
 #define RADIANS(d) ((d) * PI / 180)
 #define DEGREES(r) ((r) * 180 / PI)
 
-typedef union Vec2 {
+#define MAX(x,y) (x > y ? x : y)
+#define MIN(x,y) (x < y ? x : y)
+#define CLAMP(min, val, max) ((val)<(min)?(val)=(min):(val)>(max)?(val)=(max):(void)(val))
+#define ArrayCount(arr) (sizeof(arr)/sizeof(arr[0]))
+
+union Vec2 {
     struct {
         float x, y;
     };
     float e[2];
-} Vec2;
+};
 
-
-typedef union Vec3 {
+union Vec3 {
     struct {
         float x, y, z;
     };
@@ -21,4 +25,4 @@ typedef union Vec3 {
         float r, g, b;
     };
     float e[3];
-} Vec3;
+};
