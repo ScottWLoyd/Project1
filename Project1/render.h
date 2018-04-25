@@ -96,12 +96,14 @@ struct RenderObject {
 
 struct RenderState {
     int scope_range;
+    WindowDimension window_dimensions;
+    float feet_to_pixels;
+
     MemoryArena arena;
 
     RenderObject* render_objects[MAX_NUM_RENDER_OBJECTS];
     uint32_t num_render_objects;
 
     GLuint font_texture_id;
-
 };
 

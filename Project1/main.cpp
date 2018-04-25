@@ -86,7 +86,7 @@ static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT paint;
             HDC device_context = BeginPaint(window, &paint);
             WindowDimension dimensions = GetWindowDimension(window);
-            render(global_render_state, dimensions);
+            render(global_render_state);
             SwapBuffers(device_context);
             EndPaint(window, &paint);
         } break;
@@ -193,7 +193,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             {
                 Win32ProcessPendingMessages();
 
-
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
                 start_counter = end_counter;
@@ -206,12 +205,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 add_static_render_objects(&state, global_render_state);
 
                 HDC device_context = GetDC(window);
-                WindowDimension dimensions = GetWindowDimension(window);
-                add_dynamic_render_objects(&state, dimensions);
-                render(global_render_state, dimensions);
+                state.render_state.window_dimensions = GetWindowDimension(window);
+                add_dynamic_render_objects(&state);
+                render(global_render_state);
 
                 ImGui_ImplGlfwGL2_NewFrame(state.dt);
                 render_imgui_windows(&state, &global_paused);
+
+                float min_dimension = (float)MIN(global_render_state->window_dimensions.width, global_render_state->window_dimensions.height);
+                global_render_state->feet_to_pixels = (0.5f * min_dimension) / NM_TO_FT(global_render_state->scope_range);
 
                 SwapBuffers(device_context);
                 ReleaseDC(window, device_context);

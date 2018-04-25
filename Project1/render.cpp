@@ -341,8 +341,12 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
 {
     RenderObject* quad = push_render_object(&state->render_state, RenderObjectTexturedRect);
 
-    // TODO(scott): convert ECEF or NED coordinates to screen space
-    quad->textured_rect.center = vec2(entity->pos.x, entity->pos.y);
+    float ownship_heading = RADIANS(state->entities[state->ownship_index]->aircraft.heading);
+    float slant_range = mag(entity->ned_pos);
+    float bearing = atan2f(entity->ned_pos.e, entity->ned_pos.n);
+    quad->textured_rect.center = vec2(slant_range*sinf(bearing - ownship_heading),
+                                      slant_range*cosf(bearing - ownship_heading));
+    quad->textured_rect.center *= state->render_state.feet_to_pixels;
     quad->textured_rect.texture_id = aircraft_kind_to_texture_id(entity->aircraft.kind);
 
     Bitmap* bmp = get_bitmap(quad->textured_rect.texture_id);
@@ -378,7 +382,7 @@ static void add_static_render_objects(SimState* sim_state, RenderState* state)
     obj->color = ColorWhite;
 }
 
-static void add_dynamic_render_objects(SimState* state, WindowDimension dimensions)
+static void add_dynamic_render_objects(SimState* state)
 {
     EntityType* ownship = NULL;
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
@@ -402,9 +406,9 @@ static void add_dynamic_render_objects(SimState* state, WindowDimension dimensio
     }
 }
 
-static void render(RenderState* state, WindowDimension dimensions)
+static void render(RenderState* state)
 {
-    glViewport(0, 0, dimensions.width, dimensions.height);
+    glViewport(0, 0, state->window_dimensions.width, state->window_dimensions.height);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -416,8 +420,8 @@ static void render(RenderState* state, WindowDimension dimensions)
     glLoadIdentity();
 
     glMatrixMode(GL_PROJECTION);
-    float a = 2.0f / dimensions.width;
-    float b = 2.0f / dimensions.height;
+    float a = 2.0f / state->window_dimensions.width;
+    float b = 2.0f / state->window_dimensions.height;
     float proj[] = {
         a,  0,  0,  0,
         0,  b,  0,  0,
@@ -426,10 +430,10 @@ static void render(RenderState* state, WindowDimension dimensions)
     };
     glLoadMatrixf(proj);
 
-    float min_dimension = (float)dimensions.height;
-    if (dimensions.width < min_dimension)
+    float min_dimension = (float)state->window_dimensions.height;
+    if (state->window_dimensions.width < min_dimension)
     {
-        min_dimension = (float)dimensions.width;
+        min_dimension = (float)state->window_dimensions.width;
     }
 
     for (uint32_t render_index = 0; render_index < state->num_render_objects; render_index++)
@@ -448,8 +452,8 @@ static void render(RenderState* state, WindowDimension dimensions)
                 glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
 
                 glMatrixMode(GL_MODELVIEW);
-                Vec2 center = { (dimensions.width * 0.5f) + object->textured_rect.center.x, 
-                                (dimensions.height * 0.5f) + object->textured_rect.center.y };
+                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
+                                (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
                 glPushMatrix();
                 glTranslatef(center.x, center.y, 0);
                 float degrees = object->textured_rect.rotation;
@@ -474,8 +478,8 @@ static void render(RenderState* state, WindowDimension dimensions)
 
             case RenderObjectCircle: {
                 
-                Vec2 center = { (dimensions.width * 0.5f) + object->circle.center.x,
-                                (dimensions.height * 0.5f) + object->circle.center.y };
+                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
+                                (state->window_dimensions.height * 0.5f) + object->circle.center.y };
                 float radius = 0.5f * min_dimension * object->circle.radius;
                 draw_circle((int)center.x, (int)center.y, radius, object->color);
                 
@@ -483,10 +487,10 @@ static void render(RenderState* state, WindowDimension dimensions)
 
             case RenderObjectText: {
                 
-                Vec2 center = { (dimensions.width * 0.5f) + object->textured_rect.center.x,
-                    (dimensions.height * 0.5f) + object->textured_rect.center.y };
-                float x = (dimensions.width * 0.5f) + (min_dimension * 0.4f);
-                float y = dimensions.height - 20.0f;
+                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
+                                (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
+                float x = (state->window_dimensions.width * 0.5f) + (min_dimension * 0.4f);
+                float y = state->window_dimensions.height - 20.0f;
                 // origin at center, units in screen pixels
                 glEnable(GL_TEXTURE_2D);
                 glBindTexture(GL_TEXTURE_2D, state->font_texture_id);
@@ -509,8 +513,8 @@ static void render(RenderState* state, WindowDimension dimensions)
 
             case RenderObjectCompass: {
                 
-                Vec2 center = { (dimensions.width * 0.5f) + object->compass.center.x,
-                                (dimensions.height * 0.5f) + object->compass.center.y };
+                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->compass.center.x,
+                                (state->window_dimensions.height * 0.5f) + object->compass.center.y };
                 float radius = 0.5f * min_dimension * object->compass.radius;
                 set_color(object->color);
                 glBegin(GL_LINES);

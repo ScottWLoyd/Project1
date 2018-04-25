@@ -25,21 +25,27 @@ static void UpdateSimulation(SimState* state)
 
         entity_index = add_entity(state, EntityKind_Ownship);
         state->ownship_index = entity_index;
+        EntityType* ownship = state->entities[entity_index];
+        set_ownship_geo_pos(ownship, vec3(0, 0, 30000));
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        state->entities[entity_index]->pos = vec3(150, 150, 0);
-        state->entities[entity_index]->aircraft.kind = AircraftKind_SU35;
-        state->entities[entity_index]->iff_status = IffStatusType_Hostile;
+        EntityType* entity = state->entities[entity_index];
+        set_entity_ned_pos(entity, vec3(NM_TO_FT(28.3f), NM_TO_FT(28.3f), 0), ownship->geo_pos);
+        set_entity_heading(entity, -135);
+        entity->aircraft.kind = AircraftKind_SU35;
+        entity->iff_status = IffStatusType_Hostile;
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        state->entities[entity_index]->pos = vec3(-150, 150, 0);
-        state->entities[entity_index]->aircraft.kind = AircraftKind_F22;
-        state->entities[entity_index]->iff_status = IffStatusType_Friendly;
+        entity = state->entities[entity_index];
+        set_entity_ned_pos(entity, vec3(NM_TO_FT(20), 0, 0), ownship->geo_pos);
+        entity->aircraft.kind = AircraftKind_F22;
+        entity->iff_status = IffStatusType_Friendly;
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        state->entities[entity_index]->pos = vec3(0, 150, 0);
-        state->entities[entity_index]->aircraft.kind = AircraftKind_F15;
-        state->entities[entity_index]->iff_status = IffStatusType_Neutral;
+        entity = state->entities[entity_index];
+        set_entity_ned_pos(entity, vec3(0, NM_TO_FT(20), 0), ownship->geo_pos);
+        entity->aircraft.kind = AircraftKind_F15;
+        entity->iff_status = IffStatusType_Neutral;
 
         iff_status_to_color[IffStatusType_None] = ColorWhite;
         iff_status_to_color[IffStatusType_Friendly] = ColorGreen;
@@ -85,6 +91,7 @@ static void UpdateSimulation(SimState* state)
     // 4. Package outputs to 1553/Ethernet
     //
 
+    EntityType* ownship = state->entities[state->ownship_index];
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
         EntityType* entity = state->entities[entity_index];
@@ -92,24 +99,25 @@ static void UpdateSimulation(SimState* state)
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-                set_entity_heading(entity, entity->aircraft.heading + state->dt * 10.0f);
+                set_entity_heading(entity, entity->aircraft.heading + state->dt * 5.0f);
             } break;
 
             case EntityKind_Aircraft: {
 
                 if (entity->iff_status == IffStatusType_Hostile)
                 {
-                    float delta_pos = state->dt * 10.0f;
-                    set_entity_pos(entity, vec3_sub(entity->pos, vec3(delta_pos, delta_pos, 0)));
+                    float delta_pos = state->dt * 1000.0f;
+                    set_entity_ned_pos(entity, entity->ned_pos - vec3(delta_pos, delta_pos, 0), ownship->geo_pos);
                 }
                 else if (entity->iff_status == IffStatusType_Friendly)
                 {
                     if (entity->aircraft.kind == AircraftKind_F22)
                     {
-                        float delta_hdg = state->dt * 10.0f;
-                        set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
+                        //float delta_hdg = state->dt * 10.0f;
+                        //set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
                     }
                 }
+                update_entity_position(state, entity);
 
             } break;
 

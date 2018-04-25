@@ -24,8 +24,9 @@ enum EntityKind {
 struct EntityType {
     EntityKind kind;
     IffStatusType iff_status;
-    Vec3 pos;   // lat, lon, alt; degrees, feet
-    Vec3 relative_pos; // north, east, down; feet
+    Vec3 geo_pos;   // lat, lon, alt; degrees, feet
+    Vec3 ecef_pos;  // feet
+    Vec3 ned_pos;   // north, east, down; feet
     union {
         struct {
             AircraftKind kind;
@@ -54,6 +55,8 @@ struct SimState {
     uint32_t num_entities;
 
     uint32_t ownship_index;
+    uint32_t shoot_list[30];
+    uint32_t num_shoot_list;
 
     RenderState render_state;
 };
