@@ -7,6 +7,7 @@
 #include <gl/GL.h>
 #include <gl/GLU.h>
 
+
 #if !defined(COMPILER_MSVC)
 #define COMPILER_MSVC 0
 #endif
@@ -46,7 +47,6 @@
 static bool global_running;
 static bool global_paused;
 static RenderState* global_render_state;
-static UiState global_ui_state;
 
 static WindowDimension GetWindowDimension(HWND window)
 {
@@ -193,17 +193,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             {
                 Win32ProcessPendingMessages();
 
-                add_static_render_objects(global_render_state);
 
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
                 start_counter = end_counter;
-                state.dt = global_ui_state.dt = elapsed_seconds;
+                state.dt = elapsed_seconds;
 
                 if (!global_paused || !state.initialized)
                 {
                     UpdateSimulation(&state);
                 }
+                add_static_render_objects(&state, global_render_state);
 
                 HDC device_context = GetDC(window);
                 WindowDimension dimensions = GetWindowDimension(window);

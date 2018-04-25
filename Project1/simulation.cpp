@@ -92,7 +92,7 @@ static void UpdateSimulation(SimState* state)
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-                set_entity_heading(entity, 90.0f);
+                set_entity_heading(entity, entity->aircraft.heading + state->dt * 10.0f);
             } break;
 
             case EntityKind_Aircraft: {

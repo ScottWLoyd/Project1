@@ -299,11 +299,16 @@ static void init_render_state(RenderState* state)
     state->scope_range = 40;
 }
 
+static void set_color(Vec3 color)
+{
+    glColor3f(color.r, color.g, color.b);
+}
+
 static void draw_circle(int center_x, int center_y, float radius, Vec3 color)
 {
     // TODO(scott): subpixel alignment?
     glBegin(GL_LINE_LOOP);
-    glColor3f(color.r, color.g, color.b);
+    set_color(color);
     // TODO(scott): determine the number of points based on size of circle / resolution
     int num_points = 80;
     float scalar = TWO_PI / num_points;
@@ -351,7 +356,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     }
 }
 
-static void add_static_render_objects(RenderState* state)
+static void add_static_render_objects(SimState* sim_state, RenderState* state)
 {
     // Outer range ring
     RenderObject* obj = push_render_object(state, RenderObjectCircle);
@@ -359,10 +364,18 @@ static void add_static_render_objects(RenderState* state)
     obj->circle.radius = 1.0f;
     obj->color = ColorWhite;
 
+    // Scope Range 
     obj = push_render_object(state, RenderObjectText);
     sprintf(obj->text.text, "%d", (int)state->scope_range);
     obj->text.x = 50;
     obj->text.y = 50;
+
+    // Compass
+    obj = push_render_object(state, RenderObjectCompass);
+    obj->compass.center = vec2(0, 0);
+    obj->compass.radius = 0.25f;
+    obj->compass.rotation = -sim_state->entities[sim_state->ownship_index]->aircraft.heading;
+    obj->color = ColorWhite;
 }
 
 static void add_dynamic_render_objects(SimState* state, WindowDimension dimensions)
@@ -446,7 +459,7 @@ static void render(RenderState* state, WindowDimension dimensions)
                 
 
                 glBegin(GL_QUADS);
-                glColor3f(object->color.r, object->color.g, object->color.b);
+                set_color(object->color);
                 glTexCoord2f(0.0f, 0.0f); glVertex2f(min_p.x, min_p.y);
                 glTexCoord2f(1.0f, 0.0f); glVertex2f(max_p.x, min_p.y);
                 glTexCoord2f(1.0f, 1.0f); glVertex2f(max_p.x, max_p.y);                
@@ -462,7 +475,7 @@ static void render(RenderState* state, WindowDimension dimensions)
             case RenderObjectCircle: {
                 
                 Vec2 center = { (dimensions.width * 0.5f) + object->circle.center.x,
-                    (dimensions.height * 0.5f) + object->circle.center.y };
+                                (dimensions.height * 0.5f) + object->circle.center.y };
                 float radius = 0.5f * min_dimension * object->circle.radius;
                 draw_circle((int)center.x, (int)center.y, radius, object->color);
                 
@@ -491,6 +504,53 @@ static void render(RenderState* state, WindowDimension dimensions)
                     ++text;
                 }
                 glEnd();
+                glDisable(GL_TEXTURE_2D);
+            } break;
+
+            case RenderObjectCompass: {
+                
+                Vec2 center = { (dimensions.width * 0.5f) + object->compass.center.x,
+                                (dimensions.height * 0.5f) + object->compass.center.y };
+                float radius = 0.5f * min_dimension * object->compass.radius;
+                set_color(object->color);
+                glBegin(GL_LINES);
+                for (int degrees = 0; degrees < 360; degrees += 10)
+                {
+                    float inner_scalar = 0.95f;
+                    if (degrees % 90 == 0)
+                    {
+                        inner_scalar = 0.75f;
+                    }
+                    else if (degrees % 30 == 0)
+                    {
+                        inner_scalar = 0.85f;
+                    }
+                    float x1 = center.x + radius * sinf(RADIANS(degrees));
+                    float y1 = center.y + radius * cosf(RADIANS(degrees));
+                    float x2 = center.x + inner_scalar * radius * sinf(RADIANS(degrees));
+                    float y2 = center.y + inner_scalar * radius * cosf(RADIANS(degrees));
+                    glVertex2f(x1, y1);
+                    glVertex2f(x2, y2);
+                }
+                glEnd();
+                glMatrixMode(GL_MODELVIEW);
+                glPushMatrix();
+                glTranslatef(center.x, center.y, 0);
+                glRotatef(-object->compass.rotation, 0, 0, 1);
+                set_color(ColorCyan);
+                glBegin(GL_TRIANGLES);
+                float x1 = - 0.07f * radius;
+                float y1 = radius;
+                float x2 = 0;
+                float y2 = 0.9f * radius;
+                float x3 = 0.07f * radius;
+                float y3 = radius;
+                glVertex2f(x1, y1);
+                glVertex2f(x2, y2);
+                glVertex2f(x3, y3);
+                glEnd();
+                glPopMatrix();
+
             } break;
 
             default: {

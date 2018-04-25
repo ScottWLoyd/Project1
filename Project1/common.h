@@ -24,8 +24,8 @@ enum EntityKind {
 struct EntityType {
     EntityKind kind;
     IffStatusType iff_status;
-    Vec3 pos;   // lat, lon, alt
-    Vec3 relative_pos; // north, east, down
+    Vec3 pos;   // lat, lon, alt; degrees, feet
+    Vec3 relative_pos; // north, east, down; feet
     union {
         struct {
             AircraftKind kind;

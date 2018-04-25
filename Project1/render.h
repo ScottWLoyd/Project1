@@ -56,6 +56,7 @@ enum RenderObjectType {
     RenderObjectCircle,
     RenderObjectLine,
     RenderObjectText,
+    RenderObjectCompass,
 };
 
 struct RenderObject {
@@ -73,6 +74,11 @@ struct RenderObject {
             Vec2 center;
             float radius;
         } circle;
+        struct {
+            Vec2 center;
+            float radius;
+            float rotation;
+        } compass;
         struct {
             Vec2 start;
             Vec2 end;
