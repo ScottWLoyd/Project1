@@ -399,7 +399,7 @@ static void add_static_render_objects(SimState* sim_state, RenderState* state)
     RenderObject* obj = push_render_object(state, RenderObjectCircle);
     obj->circle.center = vec2(0, 0);
     int min_dim = MIN(state->window_dimensions.width, state->window_dimensions.height);
-    obj->circle.radius = min_dim / 2;
+    obj->circle.radius = (float)(min_dim / 2);
     obj->color = ColorWhite;
 
     // Scope Range 

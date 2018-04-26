@@ -168,6 +168,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     if (RegisterClassEx(&window_class))
     {   
         SimState state = { 0 };
+        state.time.timescale = 1.0f;
         InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
         InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
         global_render_state = &state.render_state;
@@ -196,7 +197,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
                 start_counter = end_counter;
-                state.dt = elapsed_seconds;
+                state.time.dt = elapsed_seconds;
+                state.time.effective_elapsed = state.time.dt * state.time.timescale;
 
                 if (!global_paused || !state.initialized)
                 {
@@ -209,7 +211,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 add_dynamic_render_objects(&state);
                 render(global_render_state);
 
-                ImGui_ImplGlfwGL2_NewFrame(state.dt);
+                ImGui_ImplGlfwGL2_NewFrame(state.time.dt);
                 render_imgui_windows(&state, &global_paused);
 
                 float min_dimension = (float)MIN(global_render_state->window_dimensions.width, global_render_state->window_dimensions.height);

@@ -42,7 +42,8 @@ void render_imgui_windows(SimState* state, bool* paused)
     // 1. Show a simple window.
     // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
     {
-        ImGui::Text("dt = %f", state->dt);
+        ImGui::Text("dt = %f", state->time.effective_elapsed);
+        ImGui::SliderFloat("Timescale", &state->time.timescale, 0, 1);
         //ImGui::Checkbox("lmouse:", &state->mouse_buttons_pressed[0]);
         
         POINT mouse_pos = get_mouse_position_in_client();
@@ -64,6 +65,13 @@ void render_imgui_windows(SimState* state, bool* paused)
         {
             CLAMP(5, state->render_state.scope_range, 360);
         }
+
+        ImGui::Text("Target Data"); ImGui::SameLine(); ImGui::Separator();
+        ImGui::InputFloat3("Geo Pos", (float*)&state->entities[state->ownship_index]->geo_pos, ImGuiInputTextFlags_ReadOnly);
+        ImGui::InputFloat3("ECEF Pos", (float*)&state->entities[state->ownship_index]->ecef_pos, ImGuiInputTextFlags_ReadOnly);
+        ImGui::InputFloat3("NED Pos", (float*)&state->entities[state->ownship_index]->ned_pos, ImGuiInputTextFlags_ReadOnly);
+        ImGui::InputFloat("Heading", &state->entities[state->ownship_index]->aircraft.heading);
+
     }
 
     ImGui::Render();

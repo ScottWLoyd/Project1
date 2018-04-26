@@ -38,7 +38,11 @@ struct EntityType {
 struct SimState {
     bool initialized;
 
-    float dt;
+    struct {
+        float dt;
+        float timescale;
+        float effective_elapsed;
+    } time;
 
     // These are set to true for the frame in which they cross a 
     // periodic threshold. They are then set to false at the end

@@ -64,25 +64,25 @@ static void UpdateSimulation(SimState* state)
     static float last_five_hertz_time = 0.0f;
     static float last_ten_hertz_time = 0.0f;
     static float last_twenty_hertz_time = 0.0f;
-    if (state->dt - last_one_hertz_time > 1.0f)
+    if (state->time.effective_elapsed - last_one_hertz_time > 1.0f)
     {
         state->periodic.one_hertz = true;
-        last_one_hertz_time = state->dt;
+        last_one_hertz_time = state->time.effective_elapsed;
     }
-    if (state->dt - last_five_hertz_time > 0.2f)
+    if (state->time.effective_elapsed - last_five_hertz_time > 0.2f)
     {
         state->periodic.five_hertz = true;
-        last_five_hertz_time = state->dt;
+        last_five_hertz_time = state->time.effective_elapsed;
     }
-    if (state->dt - last_ten_hertz_time > 0.1f)
+    if (state->time.effective_elapsed - last_ten_hertz_time > 0.1f)
     {
         state->periodic.ten_hertz = true;
-        last_ten_hertz_time = state->dt;
+        last_ten_hertz_time = state->time.effective_elapsed;
     }
-    if (state->dt - last_twenty_hertz_time > 0.05f)
+    if (state->time.effective_elapsed - last_twenty_hertz_time > 0.05f)
     {
         state->periodic.twenty_hertz = true;
-        last_twenty_hertz_time = state->dt;
+        last_twenty_hertz_time = state->time.effective_elapsed;
     }
 
     //
@@ -101,14 +101,14 @@ static void UpdateSimulation(SimState* state)
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-                set_entity_heading(entity, entity->aircraft.heading + state->dt * 5.0f);
+                set_entity_heading(entity, entity->aircraft.heading + state->time.effective_elapsed * 5.0f);
             } break;
 
             case EntityKind_Aircraft: {
 
                 if (entity->iff_status == IffStatusType_Hostile)
                 {
-                    float delta_pos = state->dt * 1000.0f;
+                    float delta_pos = state->time.effective_elapsed * 1000.0f;
                     set_entity_ned_pos(entity, entity->ned_pos - vec3(delta_pos, delta_pos, 0), ownship->geo_pos);
                 }
                 else if (entity->iff_status == IffStatusType_Friendly)
