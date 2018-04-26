@@ -1,3 +1,4 @@
+#if 0
 #include <windows.h>
 #include <stdint.h>
 #include <gl/GL.h>
@@ -8,6 +9,7 @@
 #include "render.h"
 #include "common.h"
 #include "imgui_impl.h"
+#endif
 
 static HWND g_Window;
 static bool         g_MouseJustPressed[3] = { false, false, false };
@@ -48,6 +50,7 @@ void render_imgui_windows(SimState* state, bool* paused)
         
         POINT mouse_pos = get_mouse_position_in_client();
         ImGui::Text("mouse: %d, %d", mouse_pos.x, mouse_pos.y);
+        ImGui::Text("Selected entity: %d", get_selected_entity_index(state));
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 

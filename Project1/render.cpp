@@ -1,128 +1,4 @@
 
-static Bitmap* CrossLoadBitmap(char* file_path)
-{
-    Bitmap* result = (Bitmap*)calloc(1, sizeof(Bitmap));
-
-    FileContents read_result = ReadEntireFile(file_path);
-    if (read_result.len != 0)
-    {
-        bitmap_header *header = (bitmap_header *)read_result.data;
-        uint32_t *pixels = (uint32_t *)((uint8_t *)read_result.data + header->bitmap_offset);
-        result->pixels = pixels;
-        result->width = header->width;
-        result->height = header->height;
-
-        assert(header->compression == 3);
-
-        uint32_t red_mask = header->red_mask;
-        uint32_t green_mask = header->green_mask;
-        uint32_t blue_mask = header->blue_mask;
-        uint32_t alpha_mask = ~(red_mask | green_mask | blue_mask);
-
-        BitScanResult red_scan = find_least_significant_set_bit(red_mask);
-        BitScanResult green_scan = find_least_significant_set_bit(green_mask);
-        BitScanResult blue_scan = find_least_significant_set_bit(blue_mask);
-        BitScanResult alpha_scan = find_least_significant_set_bit(alpha_mask);
-
-        assert(red_scan.found);
-        assert(green_scan.found);
-        assert(blue_scan.found);
-        assert(alpha_scan.found);
-
-        // ARGB
-        int32_t red_shift = 16 - (int32_t)red_scan.index;
-        int32_t green_shift = 8 - (int32_t)green_scan.index;
-        int32_t blue_shift = 0 - (int32_t)blue_scan.index;
-        int32_t alpha_shift = 24 - (int32_t)alpha_scan.index;
-
-        uint32_t *source_dest = pixels;
-        for (int32_t y = 0; y < header->height; y++)
-        {
-            for (int32_t x = 0; x < header->width; x++)
-            {
-                uint32_t color = *source_dest;
-
-                *source_dest++ = (rotate_left(color & red_mask, red_shift) |
-                    rotate_left(color & green_mask, green_shift) |
-                    rotate_left(color & blue_mask, blue_shift) |
-                    rotate_left(color & alpha_mask, alpha_shift));
-            }
-        }
-    }
-
-    return result;
-}
-
-static TextureEntry cached_textures[20];
-static size_t num_cached_textures = 0;
-
-static void CreateTexture(char* file_path, char* key)
-{
-    for (size_t texture_index=0; texture_index < num_cached_textures; texture_index++)
-    {
-        TextureEntry* it = &cached_textures[texture_index];
-        if (strcmp(it->key, key) == 0)
-        {
-            assert(!"Key already exists for texture!");
-        }
-    }
-
-    TextureEntry entry;
-    Bitmap* bitmap = CrossLoadBitmap(file_path);
-    entry.bitmap = bitmap;
-    entry.key = key;
-    
-    glGenTextures(1, &entry.id);
-    glBindTexture(GL_TEXTURE_2D, entry.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)entry.bitmap->width, (GLsizei)entry.bitmap->height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, (void*)entry.bitmap->pixels);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    
-    assert(num_cached_textures < ArrayCount(cached_textures));
-    cached_textures[num_cached_textures++] = entry;
-}
-
-static GLuint get_texture_id(char* key)
-{
-    for (size_t texture_index = 0; texture_index < num_cached_textures; texture_index++)
-    {
-        TextureEntry* it = &cached_textures[texture_index];
-        if (strcmp(it->key, key) == 0)
-        {
-            return it->id;
-        }
-    }
-    assert(!"Texture not found!");
-    return -1;
-}
-
-static Bitmap* get_bitmap(GLuint texture_id)
-{
-    for (size_t texture_index = 0; texture_index < num_cached_textures; texture_index++)
-    {
-        TextureEntry* it = &cached_textures[texture_index];
-        if (it->id == texture_id)
-        {
-            return it->bitmap;
-        }
-    }
-    return NULL;
-}
-
-static RenderObject* push_render_object(RenderState* state, RenderObjectType type)
-{
-    assert(state->num_render_objects < MAX_NUM_RENDER_OBJECTS);
-    RenderObject* obj = (RenderObject*)push_struct(&state->arena, RenderObject);
-    obj->type = type;
-
-    state->render_objects[state->num_render_objects++] = obj;
-
-    return obj;
-}
 
 static int get_desired_pixel_format(HDC device_context)
 {
@@ -304,10 +180,11 @@ static void set_color(Vec3 color)
     glColor3f(color.r, color.g, color.b);
 }
 
-static void draw_circle(float center_x, float center_y, float radius, Vec3 color, bool fill = false)
+static void draw_circle(float center_x, float center_y, float radius, Vec3 color, GLfloat line_width = 1.0f, bool fill = false)
 {
     // TODO(scott): subpixel alignment?
     GLuint type = fill ? GL_TRIANGLE_FAN : GL_LINE_LOOP;
+    glLineWidth(line_width);
     glBegin(type);
     set_color(color);
     // TODO(scott): determine the number of points based on size of circle / resolution
@@ -340,6 +217,8 @@ static Vec3 iff_status_to_color[IffStatusType_Count];
 
 static void add_aircraft_render_object(SimState* state, EntityType* entity, float rotation)
 {
+    RenderGroup* render_group = allocate_render_group(&state->render_state, &state->render_state.arena, entity, state);
+
     float ownship_heading = RADIANS(state->entities[state->ownship_index]->aircraft.heading);
     float slant_range = mag(entity->ned_pos);
     float bearing = atan2f(entity->ned_pos.e, entity->ned_pos.n);
@@ -350,9 +229,10 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     int shoot_list_priority = get_shoot_list_priority(state, entity);
     if (shoot_list_priority == 0)
     {
-        RenderObject* lock_line = push_render_object(&state->render_state, RenderObjectLine);
+        RenderObject* lock_line = push_render_object(render_group, RenderObjectLine);
         lock_line->line.start = Vec2{ 0, 0 };
         lock_line->line.end = center;
+        lock_line->line.line_width = 1;
         lock_line->color = ColorCyan;
     }
     if (shoot_list_priority >= 0)
@@ -360,18 +240,19 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
         RenderObject* circle;
         if (shoot_list_priority == 0)
         {
-            circle = push_render_object(&state->render_state, RenderObjectFillCircle);
+            circle = push_render_object(render_group, RenderObjectFillCircle);
         }
         else
         {
-            circle = push_render_object(&state->render_state, RenderObjectCircle);
+            circle = push_render_object(render_group, RenderObjectCircle);
         }
         circle->circle.center = center;
         circle->circle.radius = 23;
+        circle->circle.line_width = (GLfloat)(entity->selected ? 2 : 1);
         circle->color = iff_status_to_color[entity->iff_status];
     }
 
-    RenderObject* quad = push_render_object(&state->render_state, RenderObjectTexturedRect);
+    RenderObject* quad = push_render_object(render_group, RenderObjectTexturedRect);
     quad->textured_rect.center = center;
     quad->textured_rect.texture_id = aircraft_kind_to_texture_id(entity->aircraft.kind);
 
@@ -391,28 +272,42 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     {
         quad->color = ColorBlue;
     }
+
+    render_group->bounding.type = BoundingGeometry_Circle;
+    render_group->bounding.circle = Circle{ center, 25 };
+    render_group->pickable = true;    
 }
 
-static void add_static_render_objects(SimState* sim_state, RenderState* state)
+static void add_static_render_objects(SimState* state)
 {
+    RenderState* render_state = &state->render_state;
+    RenderGroup* group = allocate_render_group(render_state, &render_state->arena, NULL, state);
     // Outer range ring
-    RenderObject* obj = push_render_object(state, RenderObjectCircle);
+    RenderObject* obj = push_render_object(group, RenderObjectCircle);
     obj->circle.center = vec2(0, 0);
-    int min_dim = MIN(state->window_dimensions.width, state->window_dimensions.height);
+    int min_dim = MIN(render_state->window_dimensions.width, render_state->window_dimensions.height);
     obj->circle.radius = (float)(min_dim / 2);
+    obj->circle.line_width = 1;
+    obj->color = ColorWhite;
+
+    // Inner range ring
+    obj = push_render_object(group, RenderObjectCircle);
+    obj->circle.center = vec2(0, 0);
+    obj->circle.radius = (float)(min_dim / 4);
+    obj->circle.line_width = 1;
     obj->color = ColorWhite;
 
     // Scope Range 
-    obj = push_render_object(state, RenderObjectText);
-    sprintf(obj->text.text, "%d", (int)state->scope_range);
+    obj = push_render_object(group, RenderObjectText);
+    sprintf(obj->text.text, "%d", (int)render_state->scope_range);
     obj->text.x = 50;
     obj->text.y = 50;
 
     // Compass
-    obj = push_render_object(state, RenderObjectCompass);
+    obj = push_render_object(group, RenderObjectCompass);
     obj->compass.center = vec2(0, 0);
     obj->compass.radius = 0.25f;
-    obj->compass.rotation = -sim_state->entities[sim_state->ownship_index]->aircraft.heading;
+    obj->compass.rotation = -state->entities[state->ownship_index]->aircraft.heading;
     obj->color = ColorWhite;
 }
 
@@ -436,6 +331,61 @@ static void add_dynamic_render_objects(SimState* state)
 
             default: {
             } break;
+        }
+    }
+}
+
+static void handle_selection_processing(SimState* state)
+{
+    RenderState* render_state = &state->render_state;
+
+    // Translate mouse position to the center of the screen like everything else
+    Vec2 pos = render_state->mouse_pos - Vec2{ (float)(render_state->window_dimensions.width / 2), 
+                                               (float)(render_state->window_dimensions.height / 2) };
+    pos.y *= -1.0f;
+
+    uint32_t selected_entity_index = 0;
+    SelectionState selection_state = SelectionState_None;
+
+    for (size_t index = 0; index < render_state->num_render_groups; index++)
+    {
+        RenderGroup* group = render_state->render_groups[index];
+        if (group->pickable)
+        {
+            if (group->bounding.type == BoundingGeometry_Box)
+            {
+                if (box_contains_point(group->bounding.box, pos))
+                {
+                    selected_entity_index = group->entity_index;
+                    selection_state = SelectionState_Hover;
+                    break;
+                }
+            }
+            else
+            {
+                assert(group->bounding.type == BoundingGeometry_Circle);
+                if (circle_contains_point(group->bounding.circle, pos))
+                {
+                    selected_entity_index = group->entity_index;
+                    selection_state = SelectionState_Hover;
+                    break;
+                }
+            }
+        }
+    }
+
+    for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
+    {
+        EntityType* entity = state->entities[entity_index];
+        if (entity_index == selected_entity_index)
+        {
+            entity->selected = true;
+            entity->selection_state = selection_state;
+        }
+        else
+        {
+            entity->selected = false;
+            entity->selection_state = SelectionState_None;
         }
     }
 }
@@ -470,154 +420,158 @@ static void render(RenderState* state)
         min_dimension = (float)state->window_dimensions.width;
     }
 
-    for (uint32_t render_index = 0; render_index < state->num_render_objects; render_index++)
+    for (uint32_t render_index = 0; render_index < state->num_render_groups; render_index++)
     {
-        RenderObject* object = state->render_objects[render_index];
-        switch (object->type)
+        RenderGroup* group = state->render_groups[render_index];
+        for (uint32_t obj_index = 0; obj_index < group->num_render_objects; obj_index++)
         {
-            case RenderObjectTexturedRect: {
+            RenderObject* object = group->render_objects + obj_index;
+            switch (object->type)
+            {
+                case RenderObjectTexturedRect: {
                 
-                glEnable(GL_TEXTURE_2D);
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                // NOTE(scott): for pre-multiplied alpha
-                //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                    glEnable(GL_TEXTURE_2D);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    // NOTE(scott): for pre-multiplied alpha
+                    //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-                glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
+                    glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
 
-                glMatrixMode(GL_MODELVIEW);
-                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
-                                (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
-                glPushMatrix();
-                glTranslatef(center.x, center.y, 0);
-                float degrees = object->textured_rect.rotation;
-                glRotatef(degrees, 0, 0, 1);
-                Vec2 min_p = { -object->textured_rect.dim.x / 2, -object->textured_rect.dim.y / 2 };
-                Vec2 max_p = { object->textured_rect.dim.x / 2, object->textured_rect.dim.y / 2 };
+                    glMatrixMode(GL_MODELVIEW);
+                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
+                                    (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
+                    glPushMatrix();
+                    glTranslatef(center.x, center.y, 0);
+                    float degrees = object->textured_rect.rotation;
+                    glRotatef(degrees, 0, 0, 1);
+                    Vec2 min_p = { -object->textured_rect.dim.x / 2, -object->textured_rect.dim.y / 2 };
+                    Vec2 max_p = { object->textured_rect.dim.x / 2, object->textured_rect.dim.y / 2 };
                 
 
-                glBegin(GL_QUADS);
-                set_color(object->color);
-                glTexCoord2f(0.0f, 0.0f); glVertex2f(min_p.x, min_p.y);
-                glTexCoord2f(1.0f, 0.0f); glVertex2f(max_p.x, min_p.y);
-                glTexCoord2f(1.0f, 1.0f); glVertex2f(max_p.x, max_p.y);                
-                glTexCoord2f(0.0f, 1.0f); glVertex2f(min_p.x, max_p.y);
+                    glBegin(GL_QUADS);
+                    set_color(object->color);
+                    glTexCoord2f(0.0f, 0.0f); glVertex2f(min_p.x, min_p.y);
+                    glTexCoord2f(1.0f, 0.0f); glVertex2f(max_p.x, min_p.y);
+                    glTexCoord2f(1.0f, 1.0f); glVertex2f(max_p.x, max_p.y);                
+                    glTexCoord2f(0.0f, 1.0f); glVertex2f(min_p.x, max_p.y);
 
-                glEnd();
-                glPopMatrix();
+                    glEnd();
+                    glPopMatrix();
                 
-                glDisable(GL_TEXTURE_2D);
+                    glDisable(GL_TEXTURE_2D);
 
-            } break;
+                } break;
 
-            case RenderObjectCircle: {
+                case RenderObjectCircle: {
                 
-                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
-                                (state->window_dimensions.height * 0.5f) + object->circle.center.y };
-                draw_circle(center.x, center.y, object->circle.radius, object->color);
+                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
+                                    (state->window_dimensions.height * 0.5f) + object->circle.center.y };
+                    draw_circle(center.x, center.y, object->circle.radius, object->color, object->circle.line_width);
                 
-            } break;
+                } break;
 
-            case RenderObjectFillCircle: {
+                case RenderObjectFillCircle: {
 
-                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
-                                (state->window_dimensions.height * 0.5f) + object->circle.center.y };
-                draw_circle(center.x, center.y, object->circle.radius, object->color, true);
+                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
+                                    (state->window_dimensions.height * 0.5f) + object->circle.center.y };
+                    draw_circle(center.x, center.y, object->circle.radius, object->color, object->circle.line_width, true);
 
-            } break;
+                } break;
 
-            case RenderObjectText: {
+                case RenderObjectText: {
                 
-                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
-                                (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
-                float x = (state->window_dimensions.width * 0.5f) + (min_dimension * 0.4f);
-                float y = state->window_dimensions.height - 20.0f;
-                // origin at center, units in screen pixels
-                glEnable(GL_TEXTURE_2D);
-                glBindTexture(GL_TEXTURE_2D, state->font_texture_id);
-                glBegin(GL_QUADS);
-                char* text = object->text.text;
-                while (*text) {
-                    if (*text >= 32 && *text < 128) {
-                        stbtt_aligned_quad q;
-                        stbtt_GetBakedQuad(cdata, 512, 512, *text - 32, &x, &y, &q, 1);//1=opengl & d3d10+,0=d3d9
-                        glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y0);
-                        glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y0);
-                        glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y1);
-                        glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y1);
+                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
+                                    (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
+                    float x = (state->window_dimensions.width * 0.5f) + (min_dimension * 0.4f);
+                    float y = state->window_dimensions.height - 20.0f;
+                    // origin at center, units in screen pixels
+                    glEnable(GL_TEXTURE_2D);
+                    glBindTexture(GL_TEXTURE_2D, state->font_texture_id);
+                    glBegin(GL_QUADS);
+                    char* text = object->text.text;
+                    while (*text) {
+                        if (*text >= 32 && *text < 128) {
+                            stbtt_aligned_quad q;
+                            stbtt_GetBakedQuad(cdata, 512, 512, *text - 32, &x, &y, &q, 1);//1=opengl & d3d10+,0=d3d9
+                            glTexCoord2f(q.s0, q.t1); glVertex2f(q.x0, q.y0);
+                            glTexCoord2f(q.s1, q.t1); glVertex2f(q.x1, q.y0);
+                            glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, q.y1);
+                            glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, q.y1);
+                        }
+                        ++text;
                     }
-                    ++text;
-                }
-                glEnd();
-                glDisable(GL_TEXTURE_2D);
-            } break;
+                    glEnd();
+                    glDisable(GL_TEXTURE_2D);
+                } break;
 
-            case RenderObjectCompass: {
+                case RenderObjectCompass: {
                 
-                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->compass.center.x,
-                                (state->window_dimensions.height * 0.5f) + object->compass.center.y };
-                float radius = 0.5f * min_dimension * object->compass.radius;
-                set_color(object->color);
-                glBegin(GL_LINES);
-                for (int degrees = 0; degrees < 360; degrees += 10)
-                {
-                    float inner_scalar = 0.95f;
-                    if (degrees % 90 == 0)
+                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->compass.center.x,
+                                    (state->window_dimensions.height * 0.5f) + object->compass.center.y };
+                    float radius = 0.5f * min_dimension * object->compass.radius;
+                    set_color(object->color);
+                    glBegin(GL_LINES);
+                    for (int degrees = 0; degrees < 360; degrees += 10)
                     {
-                        inner_scalar = 0.75f;
+                        float inner_scalar = 0.95f;
+                        if (degrees % 90 == 0)
+                        {
+                            inner_scalar = 0.75f;
+                        }
+                        else if (degrees % 30 == 0)
+                        {
+                            inner_scalar = 0.85f;
+                        }
+                        float x1 = center.x + radius * sinf(RADIANS(degrees));
+                        float y1 = center.y + radius * cosf(RADIANS(degrees));
+                        float x2 = center.x + inner_scalar * radius * sinf(RADIANS(degrees));
+                        float y2 = center.y + inner_scalar * radius * cosf(RADIANS(degrees));
+                        glVertex2f(x1, y1);
+                        glVertex2f(x2, y2);
                     }
-                    else if (degrees % 30 == 0)
-                    {
-                        inner_scalar = 0.85f;
-                    }
-                    float x1 = center.x + radius * sinf(RADIANS(degrees));
-                    float y1 = center.y + radius * cosf(RADIANS(degrees));
-                    float x2 = center.x + inner_scalar * radius * sinf(RADIANS(degrees));
-                    float y2 = center.y + inner_scalar * radius * cosf(RADIANS(degrees));
+                    glEnd();
+                    glMatrixMode(GL_MODELVIEW);
+                    glPushMatrix();
+                    glTranslatef(center.x, center.y, 0);
+                    glRotatef(-object->compass.rotation, 0, 0, 1);
+                    set_color(ColorCyan);
+                    glBegin(GL_TRIANGLES);
+                    float x1 = - 0.07f * radius;
+                    float y1 = radius;
+                    float x2 = 0;
+                    float y2 = 0.9f * radius;
+                    float x3 = 0.07f * radius;
+                    float y3 = radius;
                     glVertex2f(x1, y1);
                     glVertex2f(x2, y2);
-                }
-                glEnd();
-                glMatrixMode(GL_MODELVIEW);
-                glPushMatrix();
-                glTranslatef(center.x, center.y, 0);
-                glRotatef(-object->compass.rotation, 0, 0, 1);
-                set_color(ColorCyan);
-                glBegin(GL_TRIANGLES);
-                float x1 = - 0.07f * radius;
-                float y1 = radius;
-                float x2 = 0;
-                float y2 = 0.9f * radius;
-                float x3 = 0.07f * radius;
-                float y3 = radius;
-                glVertex2f(x1, y1);
-                glVertex2f(x2, y2);
-                glVertex2f(x3, y3);
-                glEnd();
-                glPopMatrix();
+                    glVertex2f(x3, y3);
+                    glEnd();
+                    glPopMatrix();
 
-            } break;
+                } break;
 
-            case RenderObjectLine: {
+                case RenderObjectLine: {
 
-                Vec2 center = { (state->window_dimensions.width * 0.5f),
-                                (state->window_dimensions.height * 0.5f) };
-                Vec2 start = center + object->line.start;
-                Vec2 end = center + object->line.end;
-                set_color(object->color);
-                glBegin(GL_LINES);
-                glVertex2f(start.x, start.y);
-                glVertex2f(end.x, end.y);
-                glEnd();
+                    Vec2 center = { (state->window_dimensions.width * 0.5f),
+                                    (state->window_dimensions.height * 0.5f) };
+                    Vec2 start = center + object->line.start;
+                    Vec2 end = center + object->line.end;
+                    set_color(object->color);
+                    glLineWidth(object->line.line_width);
+                    glBegin(GL_LINES);
+                    glVertex2f(start.x, start.y);
+                    glVertex2f(end.x, end.y);
+                    glEnd();
 
-            } break;
+                } break;
 
-            default: {
-                assert(!"Unhandled render object type");
-            } break;
-        }
-    }
+                default: {
+                    assert(!"Unhandled render object type");
+                } break;
+            } // switch (object->type)
 
-    state->arena.next = state->arena.base;
-    state->num_render_objects = 0;    
+
+        } // for (uint32_t obj_index = 0; obj_index < group->num_render_objects; obj_index++)
+    } // for (uint32_t render_index = 0; render_index < state->num_render_groups; render_index++)
 }

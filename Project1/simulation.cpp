@@ -1,7 +1,7 @@
 
 static uint32_t add_entity(SimState* state, EntityKind kind)
 {
-    EntityType* entity = (EntityType*)push_struct(&state->sim_arena, EntityType);
+    EntityType* entity = push_struct(&state->sim_arena, EntityType);
     zero_struct(*entity);
     entity->kind = kind;
 
@@ -11,7 +11,7 @@ static uint32_t add_entity(SimState* state, EntityKind kind)
     return index;
 }
 
-static void UpdateSimulation(SimState* state)
+static void update_simulation(SimState* state)
 {
     if (!state->initialized)
     {
@@ -48,6 +48,7 @@ static void UpdateSimulation(SimState* state)
         set_entity_ned_pos(entity, vec3(0, NM_TO_FT(20), 0), ownship->geo_pos);
         entity->aircraft.kind = AircraftKind_F15;
         entity->iff_status = IffStatusType_Neutral;
+        add_to_shoot_list(state, entity);
 
         iff_status_to_color[IffStatusType_None] = ColorWhite;
         iff_status_to_color[IffStatusType_Friendly] = ColorGreen;

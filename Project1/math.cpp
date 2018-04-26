@@ -167,3 +167,19 @@ float mag(Vec3 v)
     result = sqrtf(mag2(v));
     return result;
 }
+
+//
+// Geometry
+//
+
+static bool box_contains_point(Box box, Vec2 point)
+{
+    return point.x >= box.top_left.x && point.x < box.bottom_right.x &&
+        point.y >= box.top_left.y && point.y < box.bottom_right.y;
+}
+
+static bool circle_contains_point(Circle circle, Vec2 point)
+{
+    float difference = mag(point - circle.center);
+    return difference <= circle.radius;
+}

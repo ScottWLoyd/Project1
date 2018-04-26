@@ -51,59 +51,24 @@ struct TextureEntry {
     Bitmap* bitmap;
 };
 
-enum RenderObjectType {
-    RenderObjectTexturedRect,
-    RenderObjectCircle,
-    RenderObjectFillCircle,
-    RenderObjectLine,
-    RenderObjectText,
-    RenderObjectCompass,
+enum SelectionState {
+    SelectionState_None,
+    SelectionState_Hover,
+    SelectionState_Selected,
 };
 
-struct RenderObject {
-    RenderObjectType type;
-    Vec3 color;
-    union {
-        struct {
-            GLuint texture_id;
-            Vec2 center;
-            Vec2 dim;
-            float rotation;
-            Vec2 scale;
-        } textured_rect;
-        struct {
-            Vec2 center;
-            float radius;
-        } circle;
-        struct {
-            Vec2 center;
-            float radius;
-            float rotation;
-        } compass;
-        struct {
-            Vec2 start;
-            Vec2 end;
-        } line;
-        struct {
-            char text[20];
-            float size;
-            float x;
-            float y;
-        } text;
-    };
-};
-
-#define MAX_NUM_RENDER_OBJECTS 1024
+#define MAX_NUM_RENDER_GROUPS 512
 
 struct RenderState {
-    int scope_range;
     WindowDimension window_dimensions;
+    Vec2 mouse_pos;
+    int scope_range;
     float feet_to_pixels;
 
     MemoryArena arena;
 
-    RenderObject* render_objects[MAX_NUM_RENDER_OBJECTS];
-    uint32_t num_render_objects;
+    RenderGroup* render_groups[MAX_NUM_RENDER_GROUPS];
+    uint32_t num_render_groups;
 
     GLuint font_texture_id;
 };

@@ -227,3 +227,16 @@ static int get_shoot_list_priority(SimState* state, EntityType* entity)
     }
     return -1;
 }
+
+static uint32_t get_selected_entity_index(SimState* state)
+{
+    // NOTE(scott): skip the null entity since it will be the default selected index
+    for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
+    {
+        if (state->entities[entity_index]->selected)
+        {
+            return entity_index;
+        }
+    }
+    return -1;
+}

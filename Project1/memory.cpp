@@ -46,7 +46,12 @@ static void InitializeMemoryArena(MemoryArena* arena, size_t size)
     arena->size = size;
 }
 
-#define push_struct(a, s) push_size(a, sizeof(s))
+static size_t arena_size_remaining(MemoryArena* arena)
+{
+    return arena->size - (arena->next - arena->base);
+}
+
+#define push_struct(a, s) (s*)push_size(a, sizeof(s))
 
 static void* push_size(MemoryArena* arena, size_t size)
 {

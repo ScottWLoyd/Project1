@@ -33,6 +33,9 @@ struct EntityType {
             float heading;
         } aircraft;
     };
+
+    bool selected;
+    SelectionState selection_state;
 };
 
 struct SimState {
@@ -67,3 +70,4 @@ struct SimState {
 
 
 int get_shoot_list_priority(SimState* state, EntityType* entity);
+uint32_t get_entity_index(SimState* state, EntityType* entity);

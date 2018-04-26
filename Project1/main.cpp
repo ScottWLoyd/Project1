@@ -37,18 +37,22 @@
 #include "math.cpp"
 #include "memory.h"
 #include "memory.cpp"
+#include "render_group.h"
 #include "render.h"
 #include "common.h"
 #include "imgui_impl.h"
+#include "render_group.cpp"
 #include "render.cpp"
 #include "common.cpp"
 #include "simulation.cpp"
+#include "imgui/imgui.h"
+#include "imgui_impl.cpp"
 
 static bool global_running;
 static bool global_paused;
 static RenderState* global_render_state;
 
-static WindowDimension GetWindowDimension(HWND window)
+static WindowDimension get_window_dimension(HWND window)
 {
     WindowDimension result;
 
@@ -60,7 +64,7 @@ static WindowDimension GetWindowDimension(HWND window)
     return result;
 }
 
-static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static LRESULT window_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LRESULT result = 0;
 
@@ -85,7 +89,6 @@ static LRESULT WindowProc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case WM_PAINT: {
             PAINTSTRUCT paint;
             HDC device_context = BeginPaint(window, &paint);
-            WindowDimension dimensions = GetWindowDimension(window);
             render(global_render_state);
             SwapBuffers(device_context);
             EndPaint(window, &paint);
@@ -127,6 +130,12 @@ static void Win32ProcessPendingMessages()
                 }
             } break;
 
+            case WM_MOUSEMOVE: {
+                Vec2 mouse_pos = Vec2{ (float)(message.lParam & 0xffff), 
+                                       (float)((message.lParam >> 16) & 0xffff) };
+                global_render_state->mouse_pos = mouse_pos;
+            } break;
+
             case WM_LBUTTONDOWN: {
                 ImGui_MouseButtonCallback(0, true);
             } break;
@@ -157,10 +166,14 @@ static void Win32ProcessPendingMessages()
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    (void)nCmdShow;
+
     WNDCLASSEX window_class = {0};
     window_class.cbSize = sizeof(window_class);
     window_class.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;
-    window_class.lpfnWndProc = (WNDPROC)WindowProc;
+    window_class.lpfnWndProc = (WNDPROC)window_proc;
     window_class.hInstance = hInstance;
     window_class.hCursor = LoadCursor(0, IDC_ARROW);
     window_class.lpszClassName = "Project1 Window Class";
@@ -194,6 +207,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             {
                 Win32ProcessPendingMessages();
 
+                handle_selection_processing(&state);
+
+                // NOTE(scott): wait to clear render state until here so that we can 
+                // use it in the event handling above.
+                global_render_state->arena.next = global_render_state->arena.base;
+                global_render_state->num_render_groups = 0;
+
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
                 start_counter = end_counter;
@@ -202,21 +222,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                 if (!global_paused || !state.initialized)
                 {
-                    UpdateSimulation(&state);
+                    update_simulation(&state);
                 }
-                add_static_render_objects(&state, global_render_state);
 
-                HDC device_context = GetDC(window);
-                state.render_state.window_dimensions = GetWindowDimension(window);
-                add_dynamic_render_objects(&state);
-                render(global_render_state);
-
-                ImGui_ImplGlfwGL2_NewFrame(state.time.dt);
-                render_imgui_windows(&state, &global_paused);
-
+                state.render_state.window_dimensions = get_window_dimension(window);
                 float min_dimension = (float)MIN(global_render_state->window_dimensions.width, global_render_state->window_dimensions.height);
                 global_render_state->feet_to_pixels = (0.5f * min_dimension) / NM_TO_FT(global_render_state->scope_range);
 
+                add_static_render_objects(&state);
+                add_dynamic_render_objects(&state);
+                render(global_render_state);
+                ImGui_ImplGlfwGL2_NewFrame(state.time.dt);
+                render_imgui_windows(&state, &global_paused);
+
+
+                HDC device_context = GetDC(window);
                 SwapBuffers(device_context);
                 ReleaseDC(window, device_context);
             }

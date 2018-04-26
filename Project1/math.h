@@ -66,3 +66,17 @@ Vec3& operator*=(Vec3& left, Vec3& right);
 
 float mag2(Vec3 v);
 float mag(Vec3 v);
+
+//
+// Geometry
+// 
+
+struct Box {
+    Vec2 top_left;
+    Vec2 bottom_right;
+};
+
+struct Circle {
+    Vec2 center;
+    float radius;
+};
