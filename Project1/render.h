@@ -54,6 +54,7 @@ struct TextureEntry {
 enum RenderObjectType {
     RenderObjectTexturedRect,
     RenderObjectCircle,
+    RenderObjectFillCircle,
     RenderObjectLine,
     RenderObjectText,
     RenderObjectCompass,

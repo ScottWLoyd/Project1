@@ -304,10 +304,11 @@ static void set_color(Vec3 color)
     glColor3f(color.r, color.g, color.b);
 }
 
-static void draw_circle(int center_x, int center_y, float radius, Vec3 color)
+static void draw_circle(float center_x, float center_y, float radius, Vec3 color, bool fill = false)
 {
     // TODO(scott): subpixel alignment?
-    glBegin(GL_LINE_LOOP);
+    GLuint type = fill ? GL_TRIANGLE_FAN : GL_LINE_LOOP;
+    glBegin(type);
     set_color(color);
     // TODO(scott): determine the number of points based on size of circle / resolution
     int num_points = 80;
@@ -339,21 +340,53 @@ static Vec3 iff_status_to_color[IffStatusType_Count];
 
 static void add_aircraft_render_object(SimState* state, EntityType* entity, float rotation)
 {
-    RenderObject* quad = push_render_object(&state->render_state, RenderObjectTexturedRect);
-
     float ownship_heading = RADIANS(state->entities[state->ownship_index]->aircraft.heading);
     float slant_range = mag(entity->ned_pos);
     float bearing = atan2f(entity->ned_pos.e, entity->ned_pos.n);
-    quad->textured_rect.center = vec2(slant_range*sinf(bearing - ownship_heading),
-                                      slant_range*cosf(bearing - ownship_heading));
-    quad->textured_rect.center *= state->render_state.feet_to_pixels;
+    Vec2 center = vec2(slant_range*sinf(bearing - ownship_heading),
+                       slant_range*cosf(bearing - ownship_heading));
+    center *= state->render_state.feet_to_pixels;
+
+    int shoot_list_priority = get_shoot_list_priority(state, entity);
+    if (shoot_list_priority == 0)
+    {
+        RenderObject* lock_line = push_render_object(&state->render_state, RenderObjectLine);
+        lock_line->line.start = Vec2{ 0, 0 };
+        lock_line->line.end = center;
+        lock_line->color = ColorCyan;
+    }
+    if (shoot_list_priority >= 0)
+    {
+        RenderObject* circle;
+        if (shoot_list_priority == 0)
+        {
+            circle = push_render_object(&state->render_state, RenderObjectFillCircle);
+        }
+        else
+        {
+            circle = push_render_object(&state->render_state, RenderObjectCircle);
+        }
+        circle->circle.center = center;
+        circle->circle.radius = 23;
+        circle->color = iff_status_to_color[entity->iff_status];
+    }
+
+    RenderObject* quad = push_render_object(&state->render_state, RenderObjectTexturedRect);
+    quad->textured_rect.center = center;
     quad->textured_rect.texture_id = aircraft_kind_to_texture_id(entity->aircraft.kind);
 
     Bitmap* bmp = get_bitmap(quad->textured_rect.texture_id);
     quad->textured_rect.dim = vec2((float)bmp->width, (float)bmp->height);
     quad->textured_rect.scale = vec2(1, 1);
     quad->textured_rect.rotation = rotation;
-    quad->color = iff_status_to_color[entity->iff_status];
+    if (shoot_list_priority == 0)
+    {
+        quad->color = ColorBlack;
+    }
+    else 
+    {
+        quad->color = iff_status_to_color[entity->iff_status];
+    }
     if (entity->kind == EntityKind_Ownship)
     {
         quad->color = ColorBlue;
@@ -365,7 +398,8 @@ static void add_static_render_objects(SimState* sim_state, RenderState* state)
     // Outer range ring
     RenderObject* obj = push_render_object(state, RenderObjectCircle);
     obj->circle.center = vec2(0, 0);
-    obj->circle.radius = 1.0f;
+    int min_dim = MIN(state->window_dimensions.width, state->window_dimensions.height);
+    obj->circle.radius = min_dim / 2;
     obj->color = ColorWhite;
 
     // Scope Range 
@@ -480,9 +514,16 @@ static void render(RenderState* state)
                 
                 Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
                                 (state->window_dimensions.height * 0.5f) + object->circle.center.y };
-                float radius = 0.5f * min_dimension * object->circle.radius;
-                draw_circle((int)center.x, (int)center.y, radius, object->color);
+                draw_circle(center.x, center.y, object->circle.radius, object->color);
                 
+            } break;
+
+            case RenderObjectFillCircle: {
+
+                Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
+                                (state->window_dimensions.height * 0.5f) + object->circle.center.y };
+                draw_circle(center.x, center.y, object->circle.radius, object->color, true);
+
             } break;
 
             case RenderObjectText: {
@@ -554,6 +595,20 @@ static void render(RenderState* state)
                 glVertex2f(x3, y3);
                 glEnd();
                 glPopMatrix();
+
+            } break;
+
+            case RenderObjectLine: {
+
+                Vec2 center = { (state->window_dimensions.width * 0.5f),
+                                (state->window_dimensions.height * 0.5f) };
+                Vec2 start = center + object->line.start;
+                Vec2 end = center + object->line.end;
+                set_color(object->color);
+                glBegin(GL_LINES);
+                glVertex2f(start.x, start.y);
+                glVertex2f(end.x, end.y);
+                glEnd();
 
             } break;
 

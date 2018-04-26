@@ -60,3 +60,6 @@ struct SimState {
 
     RenderState render_state;
 };
+
+
+int get_shoot_list_priority(SimState* state, EntityType* entity);

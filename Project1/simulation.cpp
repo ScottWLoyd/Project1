@@ -34,12 +34,14 @@ static void UpdateSimulation(SimState* state)
         set_entity_heading(entity, -135);
         entity->aircraft.kind = AircraftKind_SU35;
         entity->iff_status = IffStatusType_Hostile;
+        add_to_shoot_list(state, entity);
 
         entity_index = add_entity(state, EntityKind_Aircraft);
         entity = state->entities[entity_index];
         set_entity_ned_pos(entity, vec3(NM_TO_FT(20), 0, 0), ownship->geo_pos);
         entity->aircraft.kind = AircraftKind_F22;
         entity->iff_status = IffStatusType_Friendly;
+        add_to_shoot_list(state, entity);
 
         entity_index = add_entity(state, EntityKind_Aircraft);
         entity = state->entities[entity_index];
