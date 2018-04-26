@@ -12,6 +12,8 @@ enum RenderObjectType {
 struct RenderObject {
     RenderObjectType type;
     Vec3 color;
+    // NOTE(scott): these coordinates are in screen pixels relative to
+    // the center of the screen!
     union {
         struct {
             GLuint texture_id;
@@ -57,6 +59,8 @@ struct RenderGroup {
     bool pickable;
     struct {
         BoundingGeometryType type;
+        // NOTE(scott): these coordinates are in screen pixels relative to
+        // the center of the screen!
         union {
             Circle circle;
             Box box;

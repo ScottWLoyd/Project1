@@ -1,14 +1,12 @@
 
-static uint32_t add_entity(SimState* state, EntityKind kind)
+
+static void update_entity_position(SimState* state, EntityType* entity)
 {
-    EntityType* entity = push_struct(&state->sim_arena, EntityType);
-    zero_struct(*entity);
-    entity->kind = kind;
-
-    uint32_t index = state->num_entities;
-    state->entities[state->num_entities++] = entity;
-
-    return index;
+    // NOTE(scott): we typically want to update kinematics in ECEF
+    // and then translate into geo and NED. Graphics are derived
+    // from NED coordinates.
+    entity->ned_pos = ecef_to_ned(state->entities[state->ownship_index]->geo_pos, entity->ecef_pos);
+    entity->geo_pos = ecef_to_geo(entity->ecef_pos);
 }
 
 static void update_simulation(SimState* state)

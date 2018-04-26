@@ -35,7 +35,7 @@ struct EntityType {
     };
 
     bool selected;
-    SelectionState selection_state;
+    uint32_t selection_state;
 };
 
 struct SimState {

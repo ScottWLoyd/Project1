@@ -52,15 +52,16 @@ struct TextureEntry {
 };
 
 enum SelectionState {
-    SelectionState_None,
-    SelectionState_Hover,
-    SelectionState_Selected,
+    SelectionState_None     = 0,
+    SelectionState_Hover    = (1 << 0),
+    SelectionState_Selected = (1 << 1),
 };
 
 #define MAX_NUM_RENDER_GROUPS 512
 
 struct RenderState {
     WindowDimension window_dimensions;
+    bool mouse_buttons[3];
     Vec2 mouse_pos;
     int scope_range;
     float feet_to_pixels;

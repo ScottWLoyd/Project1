@@ -119,6 +119,18 @@ static Vec3 ecef_to_geo(Vec3 ecef_pos)
     return result;
 }
 
+static uint32_t add_entity(SimState* state, EntityKind kind)
+{
+    EntityType* entity = push_struct(&state->sim_arena, EntityType);
+    zero_struct(*entity);
+    entity->kind = kind;
+
+    uint32_t index = state->num_entities;
+    state->entities[state->num_entities++] = entity;
+
+    return index;
+}
+
 #define set_ownship_geo_pos(e, p) set_entity_geo_pos(e, p, p)
 
 static void set_entity_geo_pos(EntityType* entity, Vec3 new_geo_pos, Vec3 ownship_geo_pos)
@@ -139,15 +151,6 @@ static void set_entity_heading(EntityType* entity, float new_heading)
 {
     // TODO(scott): flesh this out when we have more coordinate systems, etc.
     entity->aircraft.heading = new_heading;
-}
-
-static void update_entity_position(SimState* state, EntityType* entity)
-{
-    // NOTE(scott): we typically want to update kinematics in ECEF
-    // and then translate into geo and NED. Graphics are derived
-    // from NED coordinates.
-    entity->ned_pos = ecef_to_ned(state->entities[state->ownship_index]->geo_pos, entity->ecef_pos);
-    entity->geo_pos = ecef_to_geo(entity->ecef_pos);
 }
 
 inline static uint32_t get_entity_index(SimState* state, EntityType* entity)
@@ -228,6 +231,11 @@ static int get_shoot_list_priority(SimState* state, EntityType* entity)
     return -1;
 }
 
+static bool target_in_shoot_list(SimState* state, uint32_t entity_index)
+{
+    return get_shoot_list_priority(state, entity_index) > -1;
+}
+
 static uint32_t get_selected_entity_index(SimState* state)
 {
     // NOTE(scott): skip the null entity since it will be the default selected index
@@ -238,5 +246,5 @@ static uint32_t get_selected_entity_index(SimState* state)
             return entity_index;
         }
     }
-    return -1;
+    return 0;
 }

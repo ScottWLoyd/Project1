@@ -50,7 +50,8 @@ void render_imgui_windows(SimState* state, bool* paused)
         
         POINT mouse_pos = get_mouse_position_in_client();
         ImGui::Text("mouse: %d, %d", mouse_pos.x, mouse_pos.y);
-        ImGui::Text("Selected entity: %d", get_selected_entity_index(state));
+        uint32_t selected_entity_index = get_selected_entity_index(state);
+        ImGui::Text("Selected entity: %d", selected_entity_index);
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -69,12 +70,36 @@ void render_imgui_windows(SimState* state, bool* paused)
             CLAMP(5, state->render_state.scope_range, 360);
         }
 
-        ImGui::Text("Target Data"); ImGui::SameLine(); ImGui::Separator();
-        ImGui::InputFloat3("Geo Pos", (float*)&state->entities[state->ownship_index]->geo_pos, ImGuiInputTextFlags_ReadOnly);
-        ImGui::InputFloat3("ECEF Pos", (float*)&state->entities[state->ownship_index]->ecef_pos, ImGuiInputTextFlags_ReadOnly);
-        ImGui::InputFloat3("NED Pos", (float*)&state->entities[state->ownship_index]->ned_pos, ImGuiInputTextFlags_ReadOnly);
-        ImGui::InputFloat("Heading", &state->entities[state->ownship_index]->aircraft.heading);
+        EntityType* selected_entity = state->entities[selected_entity_index];
+        ImGui::Separator();
+        ImGui::Text("Selected Target Data"); 
+        if (selected_entity)
+        {
+            ImGui::InputFloat3("Lat, Lon, Alt", (float*)&selected_entity->geo_pos, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputFloat3("ECEF X, Y, Z", (float*)&selected_entity->ecef_pos, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputFloat3("N, E, D", (float*)&selected_entity->ned_pos, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputFloat("Heading", &selected_entity->aircraft.heading);
+        }
 
+        ImGui::Separator();
+        ImGui::Text("Shoot List");
+        if (selected_entity_index > 0)
+        {
+            if (target_in_shoot_list(state, selected_entity_index))
+            {
+                if (ImGui::Button("Remove from shoot list"))
+                {
+                    remove_from_shoot_list(state, selected_entity);
+                }
+            }
+            else
+            {
+                if (ImGui::Button("Add to shoot list"))
+                {
+                    add_to_shoot_list(state, selected_entity);
+                }
+            }
+        }
     }
 
     ImGui::Render();

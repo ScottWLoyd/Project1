@@ -100,7 +100,7 @@ static LRESULT window_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return result;
 }
 
-static void Win32ProcessPendingMessages()
+static void win32_process_pending_messages()
 {
     MSG message;
     while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
@@ -133,25 +133,37 @@ static void Win32ProcessPendingMessages()
             case WM_MOUSEMOVE: {
                 Vec2 mouse_pos = Vec2{ (float)(message.lParam & 0xffff), 
                                        (float)((message.lParam >> 16) & 0xffff) };
+
+                // Translate mouse position to the center of the screen and 
+                // y-up, like everything else
+                mouse_pos -= Vec2{ (float)(global_render_state->window_dimensions.width / 2),
+                                   (float)(global_render_state->window_dimensions.height / 2) };
+                mouse_pos.y *= -1.0f;
                 global_render_state->mouse_pos = mouse_pos;
             } break;
 
             case WM_LBUTTONDOWN: {
+                global_render_state->mouse_buttons[0] = true;
                 ImGui_MouseButtonCallback(0, true);
             } break;
             case WM_LBUTTONUP: {
+                global_render_state->mouse_buttons[0] = false;
                 ImGui_MouseButtonCallback(0, false);
             } break;
             case WM_MBUTTONDOWN: {
+                global_render_state->mouse_buttons[1] = true;
                 ImGui_MouseButtonCallback(1, true);
             } break;
             case WM_MBUTTONUP: {
+                global_render_state->mouse_buttons[1] = false;
                 ImGui_MouseButtonCallback(1, false);
             } break;
             case WM_RBUTTONDOWN: {
+                global_render_state->mouse_buttons[2] = true;
                 ImGui_MouseButtonCallback(2, true);
             } break;
             case WM_RBUTTONUP: {
+                global_render_state->mouse_buttons[2] = false;
                 ImGui_MouseButtonCallback(2, false);
             } break;
 
@@ -205,7 +217,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             
             while (global_running)
             {
-                Win32ProcessPendingMessages();
+                win32_process_pending_messages();
 
                 handle_selection_processing(&state);
 
@@ -232,9 +244,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 add_static_render_objects(&state);
                 add_dynamic_render_objects(&state);
                 render(global_render_state);
+
                 ImGui_ImplGlfwGL2_NewFrame(state.time.dt);
                 render_imgui_windows(&state, &global_paused);
-
 
                 HDC device_context = GetDC(window);
                 SwapBuffers(device_context);

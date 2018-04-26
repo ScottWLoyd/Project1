@@ -227,7 +227,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     center *= state->render_state.feet_to_pixels;
 
     int shoot_list_priority = get_shoot_list_priority(state, entity);
-    if (shoot_list_priority == 0)
+    if (shoot_list_priority == 0)   // PDT - draw lock line
     {
         RenderObject* lock_line = push_render_object(render_group, RenderObjectLine);
         lock_line->line.start = Vec2{ 0, 0 };
@@ -235,20 +235,20 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
         lock_line->line.line_width = 1;
         lock_line->color = ColorCyan;
     }
-    if (shoot_list_priority >= 0)
+    if (shoot_list_priority >= 0)   // Designated target
     {
-        RenderObject* circle;
-        if (shoot_list_priority == 0)
-        {
-            circle = push_render_object(render_group, RenderObjectFillCircle);
-        }
-        else
-        {
-            circle = push_render_object(render_group, RenderObjectCircle);
-        }
+        RenderObject* circle = push_render_object(render_group, RenderObjectFillCircle);
         circle->circle.center = center;
         circle->circle.radius = 23;
         circle->circle.line_width = (GLfloat)(entity->selected ? 2 : 1);
+        circle->color = iff_status_to_color[entity->iff_status];
+    }
+    if (entity->selected)   // Hovered/clicked
+    {
+        RenderObject* circle = push_render_object(render_group, RenderObjectCircle);
+        circle->circle.center = center;
+        circle->circle.radius = 25;
+        circle->circle.line_width = 2;
         circle->color = iff_status_to_color[entity->iff_status];
     }
 
@@ -260,7 +260,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     quad->textured_rect.dim = vec2((float)bmp->width, (float)bmp->height);
     quad->textured_rect.scale = vec2(1, 1);
     quad->textured_rect.rotation = rotation;
-    if (shoot_list_priority == 0)
+    if (shoot_list_priority >= 0)
     {
         quad->color = ColorBlack;
     }
@@ -339,13 +339,12 @@ static void handle_selection_processing(SimState* state)
 {
     RenderState* render_state = &state->render_state;
 
-    // Translate mouse position to the center of the screen like everything else
-    Vec2 pos = render_state->mouse_pos - Vec2{ (float)(render_state->window_dimensions.width / 2), 
-                                               (float)(render_state->window_dimensions.height / 2) };
-    pos.y *= -1.0f;
-
     uint32_t selected_entity_index = 0;
-    SelectionState selection_state = SelectionState_None;
+    uint32_t selection_state = SelectionState_None;
+
+    static bool last_mouse_buttons[3] = { false, false, false };
+
+    bool clicked = !render_state->mouse_buttons[0] && last_mouse_buttons[0];
 
     for (size_t index = 0; index < render_state->num_render_groups; index++)
     {
@@ -354,38 +353,67 @@ static void handle_selection_processing(SimState* state)
         {
             if (group->bounding.type == BoundingGeometry_Box)
             {
-                if (box_contains_point(group->bounding.box, pos))
+                if (box_contains_point(group->bounding.box, render_state->mouse_pos))
                 {
                     selected_entity_index = group->entity_index;
                     selection_state = SelectionState_Hover;
+
+                    if (clicked)
+                    {
+                        selection_state |= SelectionState_Selected;
+                    }
                     break;
                 }
             }
             else
             {
                 assert(group->bounding.type == BoundingGeometry_Circle);
-                if (circle_contains_point(group->bounding.circle, pos))
+                if (circle_contains_point(group->bounding.circle, render_state->mouse_pos))
                 {
                     selected_entity_index = group->entity_index;
                     selection_state = SelectionState_Hover;
+
+                    if (clicked)
+                    {
+                        selection_state |= SelectionState_Selected;
+                    }
                     break;
                 }
             }
         }
     }
 
-    for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
+    memcpy(last_mouse_buttons, render_state->mouse_buttons, sizeof(last_mouse_buttons));
+
+    if (clicked && selected_entity_index == 0)
     {
-        EntityType* entity = state->entities[entity_index];
-        if (entity_index == selected_entity_index)
+        // clicked empty space - deselect everything
+        for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
         {
-            entity->selected = true;
-            entity->selection_state = selection_state;
-        }
-        else
-        {
+            EntityType* entity = state->entities[entity_index];
             entity->selected = false;
             entity->selection_state = SelectionState_None;
+        }
+    }
+    else
+    {
+        for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
+        {
+            EntityType* entity = state->entities[entity_index];
+            if (entity_index == selected_entity_index)
+            {
+                entity->selected = true;
+                entity->selection_state |= selection_state;
+            }
+            else if ((selection_state & SelectionState_Selected) && entity->selection_state & SelectionState_Selected)
+            {
+                entity->selection_state ^= SelectionState_Selected;
+            }
+            else if (0 == (entity->selection_state & SelectionState_Selected))
+            {
+                entity->selected = false;
+                entity->selection_state = SelectionState_None;
+            }
         }
     }
 }
