@@ -168,9 +168,9 @@ static void init_render_state(RenderState* state)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     
     // Load textures
-    CreateTexture("../res/f-15-small.bmp", "f-15");
-    CreateTexture("../res/f-22-small.bmp", "f-22");
-    CreateTexture("../res/su-35-small.bmp", "su-35");
+    CreateTexture("./res/f-15-small.bmp", "f-15");
+    CreateTexture("./res/f-22-small.bmp", "f-22");
+    CreateTexture("./res/su-35-small.bmp", "su-35");
 
     state->scope_range = 40;
 }
@@ -248,7 +248,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
         RenderObject* circle = push_render_object(render_group, RenderObjectCircle);
         circle->circle.center = center;
         circle->circle.radius = 25;
-        circle->circle.line_width = 2;
+        circle->circle.line_width = 1;
         circle->color = iff_status_to_color[entity->iff_status];
     }
 

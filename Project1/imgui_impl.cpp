@@ -121,6 +121,46 @@ void render_imgui_windows(SimState* state, bool* paused)
                     add_to_shoot_list(state, selected_entity);
                 }
             }
+
+            ImGui::Separator();
+            ImGui::Text("Type Information");
+            static const char* aircraft_types[] = { "F-15", "F-22", "Su-35" };
+            const char* current_item = aircraft_types[selected_entity->aircraft.kind];
+            if (ImGui::BeginCombo("Aircraft", current_item)) // The second parameter is the label previewed before opening the combo.
+            {
+                for (int n = 0; n < ArrayCount(aircraft_types); n++)
+                {
+                    bool is_selected = (current_item == aircraft_types[n]); // You can store your selection however you want, outside or inside your objects
+                    if (ImGui::Selectable(aircraft_types[n], is_selected))
+                    {
+                        selected_entity->aircraft.kind = (AircraftKind)n;
+                    }
+                    if (is_selected)
+                    {
+                        ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            static const char* iff_types[] = { "Unknown", "Fiendly", "Neutral", "Hostile" };
+            current_item = iff_types[selected_entity->iff_status];
+            if (ImGui::BeginCombo("IFF Status", current_item)) // The second parameter is the label previewed before opening the combo.
+            {
+                for (int n = 0; n < ArrayCount(iff_types); n++)
+                {
+                    bool is_selected = (current_item == iff_types[n]); // You can store your selection however you want, outside or inside your objects
+                    if (ImGui::Selectable(iff_types[n], is_selected))
+                    {
+                        selected_entity->iff_status = (IffStatusType)n;
+                    }
+                    if (is_selected)
+                    {
+                        ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+                    }
+                }
+                ImGui::EndCombo();
+            }
         }
         
         ImVec2 min = ImGui::GetWindowPos();

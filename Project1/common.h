@@ -1,10 +1,14 @@
 
+// NOTE(scott): changes to this list need to be reflected in the 
+// imgui_impl file for combobox selection
 enum AircraftKind {
     AircraftKind_F15,
     AircraftKind_F22,
     AircraftKind_SU35,
 };
 
+// NOTE(scott): changes to this list need to be reflected in the 
+// imgui_impl file for combobox selection
 enum IffStatusType {
     IffStatusType_None,
     IffStatusType_Friendly,
