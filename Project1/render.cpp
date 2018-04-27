@@ -219,7 +219,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
 {
     RenderGroup* render_group = allocate_render_group(&state->render_state, &state->render_state.arena, entity, state);
 
-    float ownship_heading = RADIANS(state->entities[state->ownship_index]->aircraft.heading);
+    float ownship_heading = RADIANS(state->entities[state->ownship_index].aircraft.heading);
     float slant_range = mag(entity->ned_pos);
     float bearing = atan2f(entity->ned_pos.e, entity->ned_pos.n);
     Vec2 center = vec2(slant_range*sinf(bearing - ownship_heading),
@@ -307,7 +307,7 @@ static void add_static_render_objects(SimState* state)
     obj = push_render_object(group, RenderObjectCompass);
     obj->compass.center = vec2(0, 0);
     obj->compass.radius = 0.25f;
-    obj->compass.rotation = -state->entities[state->ownship_index]->aircraft.heading;
+    obj->compass.rotation = -state->entities[state->ownship_index].aircraft.heading;
     obj->color = ColorWhite;
 }
 
@@ -316,11 +316,11 @@ static void add_dynamic_render_objects(SimState* state)
     EntityType* ownship = NULL;
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
-        EntityType* entity = state->entities[entity_index];
+        EntityType* entity = state->entities + entity_index;
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-                ownship = state->entities[entity_index];
+                ownship = entity;
                 add_aircraft_render_object(state, entity, 0);
             } break;
 
@@ -335,49 +335,107 @@ static void add_dynamic_render_objects(SimState* state)
     }
 }
 
-static void handle_selection_processing(SimState* state)
+static Vec2 convert_point_to_render_space(RenderState* state, Vec2 pt)
+{
+    // Translate to the center of the window and y-up
+    pt -= Vec2{ (float)(state->window_dimensions.width / 2),
+                (float)(state->window_dimensions.height / 2) };
+    pt.y *= -1.0f;
+    return pt;
+}
+
+static Vec2 convert_point_to_window_space(RenderState* state, Vec2 pt)
+{
+    // Translate to the top left of window and y-down
+    pt.y *= -1.0f;
+    pt += Vec2{ (float)(state->window_dimensions.width / 2),
+                (float)(state->window_dimensions.height / 2) };
+    return pt;
+}
+
+static void perform_ui_processing(SimState* state)
 {
     RenderState* render_state = &state->render_state;
+    static bool last_mouse_buttons[3] = { false, false, false };
+    bool clicked = !render_state->mouse_buttons[0] && last_mouse_buttons[0];
 
     uint32_t selected_entity_index = 0;
     uint32_t selection_state = SelectionState_None;
 
-    static bool last_mouse_buttons[3] = { false, false, false };
-
-    bool clicked = !render_state->mouse_buttons[0] && last_mouse_buttons[0];
-
-    for (size_t index = 0; index < render_state->num_render_groups; index++)
+    if (render_state->control_event == ControlEvent_SetTargetPosition)
     {
-        RenderGroup* group = render_state->render_groups[index];
-        if (group->pickable)
+        EntityType* entity = state->entities + render_state->control_event_entity_index;
+        EntityType* ownship = state->entities + state->ownship_index;
+        Vec2 screen_pos = render_state->mouse_pos;
+        float ownship_heading = RADIANS(ownship->aircraft.heading);
+        float bearing = atan2f(screen_pos.y, screen_pos.x);
+        float slant_range = mag(screen_pos);
+        Vec3 ned_pos = { slant_range * sinf(bearing - ownship_heading), slant_range * cosf(bearing - ownship_heading), 0 };
+        ned_pos *= 1.0f / render_state->feet_to_pixels;
+        set_entity_ned_pos(entity, ned_pos, ownship->geo_pos);
+        set_entity_heading(entity, ownship->aircraft.heading);
+
+        if (clicked)
         {
-            if (group->bounding.type == BoundingGeometry_Box)
-            {
-                if (box_contains_point(group->bounding.box, render_state->mouse_pos))
-                {
-                    selected_entity_index = group->entity_index;
-                    selection_state = SelectionState_Hover;
+            render_state->control_event_point = screen_pos;
+            render_state->control_event = ControlEvent_SetTargetHeading;
+        }
+    }
+    else if (render_state->control_event == ControlEvent_SetTargetHeading)
+    {
+        EntityType* entity = state->entities + render_state->control_event_entity_index;
+        EntityType* ownship = state->entities + state->ownship_index;
 
-                    if (clicked)
+        Vec2 screen_pos = render_state->mouse_pos;
+        float ownship_heading = RADIANS(ownship->aircraft.heading);
+        float bearing = atan2f(screen_pos.y, screen_pos.x);
+        float slant_range = mag(screen_pos);
+        Vec3 ned_pos = { slant_range * sinf(bearing - ownship_heading), slant_range * cosf(bearing - ownship_heading), 0 };
+        ned_pos *= 1.0f / render_state->feet_to_pixels;
+        Vec3 heading_vector = ned_pos - entity->ned_pos;
+        float azimuth = atan2f(heading_vector.e, heading_vector.n);
+        set_entity_heading(entity, DEGREES(azimuth));
+
+        if (clicked)
+        {
+            render_state->control_event = ControlEvent_None;
+        }
+    }
+    else
+    {
+        for (size_t index = 0; index < render_state->num_render_groups; index++)
+        {
+            RenderGroup* group = render_state->render_groups[index];
+            if (group->pickable)
+            {
+                if (group->bounding.type == BoundingGeometry_Box)
+                {
+                    if (box_contains_point(group->bounding.box, render_state->mouse_pos))
                     {
-                        selection_state |= SelectionState_Selected;
+                        selected_entity_index = group->entity_index;
+                        selection_state = SelectionState_Hover;
+
+                        if (clicked)
+                        {
+                            selection_state |= SelectionState_Selected;
+                        }
+                        break;
                     }
-                    break;
                 }
-            }
-            else
-            {
-                assert(group->bounding.type == BoundingGeometry_Circle);
-                if (circle_contains_point(group->bounding.circle, render_state->mouse_pos))
+                else
                 {
-                    selected_entity_index = group->entity_index;
-                    selection_state = SelectionState_Hover;
-
-                    if (clicked)
+                    assert(group->bounding.type == BoundingGeometry_Circle);
+                    if (circle_contains_point(group->bounding.circle, render_state->mouse_pos))
                     {
-                        selection_state |= SelectionState_Selected;
+                        selected_entity_index = group->entity_index;
+                        selection_state = SelectionState_Hover;
+
+                        if (clicked)
+                        {
+                            selection_state |= SelectionState_Selected;
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
@@ -390,7 +448,7 @@ static void handle_selection_processing(SimState* state)
         // clicked empty space - deselect everything
         for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
         {
-            EntityType* entity = state->entities[entity_index];
+            EntityType* entity = state->entities + entity_index;
             entity->selected = false;
             entity->selection_state = SelectionState_None;
         }
@@ -399,7 +457,7 @@ static void handle_selection_processing(SimState* state)
     {
         for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
         {
-            EntityType* entity = state->entities[entity_index];
+            EntityType* entity = state->entities + entity_index;
             if (entity_index == selected_entity_index)
             {
                 entity->selected = true;

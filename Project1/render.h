@@ -57,12 +57,24 @@ enum SelectionState {
     SelectionState_Selected = (1 << 1),
 };
 
+enum ControlEvent {
+    ControlEvent_None,
+    ControlEvent_SetTargetPosition,
+    ControlEvent_SetTargetHeading,
+};
+
 #define MAX_NUM_RENDER_GROUPS 512
 
 struct RenderState {
     WindowDimension window_dimensions;
+    Box last_imgui_window;
     bool mouse_buttons[3];
     Vec2 mouse_pos;
+
+    ControlEvent control_event;
+    uint32_t control_event_entity_index;
+    Vec2 control_event_point;
+
     int scope_range;
     float feet_to_pixels;
 

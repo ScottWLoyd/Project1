@@ -44,17 +44,19 @@ void render_imgui_windows(SimState* state, bool* paused)
     // 1. Show a simple window.
     // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
     {
-        ImGui::Text("dt = %f", state->time.effective_elapsed);
-        ImGui::SliderFloat("Timescale", &state->time.timescale, 0, 1);
-        //ImGui::Checkbox("lmouse:", &state->mouse_buttons_pressed[0]);
-        
+        ImGui::Text("Debug");
         POINT mouse_pos = get_mouse_position_in_client();
         ImGui::Text("mouse: %d, %d", mouse_pos.x, mouse_pos.y);
+        Box last_box = state->render_state.last_imgui_window;
+        ImGui::Text("content box: %f, %f, %f, %f", last_box.top_left.x, last_box.top_left.y, last_box.bottom_right.x, last_box.bottom_right.y);
         uint32_t selected_entity_index = get_selected_entity_index(state);
-        ImGui::Text("Selected entity: %d", selected_entity_index);
-
+        ImGui::Text("Selected entity: %d/%d", selected_entity_index, state->num_entities);
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+        ImGui::Separator();
+        ImGui::Text("Simulation Control");
+        ImGui::Text("dt = %f", state->time.effective_elapsed);
+        ImGui::SliderFloat("Timescale", &state->time.timescale, 0, 1);
         if (ImGui::Button(*paused ? "Resume" : "Pause"))
         {
             *paused = !*paused;
@@ -64,27 +66,47 @@ void render_imgui_windows(SimState* state, bool* paused)
         {
             state->initialized = false;
         }
-
         if (ImGui::InputInt("Scope Range", &state->render_state.scope_range, 5, 20, 0))
         {
             CLAMP(5, state->render_state.scope_range, 360);
         }
 
-        EntityType* selected_entity = state->entities[selected_entity_index];
         ImGui::Separator();
-        ImGui::Text("Selected Target Data"); 
-        if (selected_entity)
+        ImGui::Text("Target Control");
+        if (ImGui::Button("Add Target"))
         {
-            ImGui::InputFloat3("Lat, Lon, Alt", (float*)&selected_entity->geo_pos, ImGuiInputTextFlags_ReadOnly);
-            ImGui::InputFloat3("ECEF X, Y, Z", (float*)&selected_entity->ecef_pos, ImGuiInputTextFlags_ReadOnly);
-            ImGui::InputFloat3("N, E, D", (float*)&selected_entity->ned_pos, ImGuiInputTextFlags_ReadOnly);
-            ImGui::InputFloat("Heading", &selected_entity->aircraft.heading);
+            if (state->render_state.control_event == ControlEvent_None)
+            {
+                state->render_state.control_event = ControlEvent_SetTargetPosition;
+                state->render_state.control_event_entity_index = add_entity(state, EntityKind_Aircraft);
+            }
         }
 
-        ImGui::Separator();
-        ImGui::Text("Shoot List");
         if (selected_entity_index > 0)
         {
+            EntityType* selected_entity = state->entities + selected_entity_index;
+
+            if (selected_entity_index != state->ownship_index)
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Remove Target"))
+                {
+                    remove_entity(state, selected_entity_index);
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Selected Target Data");
+            if (selected_entity)
+            {
+                ImGui::InputFloat3("Lat, Lon, Alt", (float*)&selected_entity->geo_pos, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("ECEF X, Y, Z", (float*)&selected_entity->ecef_pos, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("N, E, D", (float*)&selected_entity->ned_pos, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat("Heading", &selected_entity->aircraft.heading);
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Shoot List");
             if (target_in_shoot_list(state, selected_entity_index))
             {
                 if (ImGui::Button("Remove from shoot list"))
@@ -100,6 +122,12 @@ void render_imgui_windows(SimState* state, bool* paused)
                 }
             }
         }
+        
+        ImVec2 min = ImGui::GetWindowPos();
+        ImVec2 max = ImGui::GetWindowSize();
+        Vec2 top_left = Vec2{ min.x, min.y };
+        Vec2 bottom_right = top_left + Vec2{ max.x, max.y };
+        state->render_state.last_imgui_window = Box{ top_left, bottom_right };
     }
 
     ImGui::Render();

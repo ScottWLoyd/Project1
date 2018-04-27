@@ -5,7 +5,7 @@ static void update_entity_position(SimState* state, EntityType* entity)
     // NOTE(scott): we typically want to update kinematics in ECEF
     // and then translate into geo and NED. Graphics are derived
     // from NED coordinates.
-    entity->ned_pos = ecef_to_ned(state->entities[state->ownship_index]->geo_pos, entity->ecef_pos);
+    entity->ned_pos = ecef_to_ned(state->entities[state->ownship_index].geo_pos, entity->ecef_pos);
     entity->geo_pos = ecef_to_geo(entity->ecef_pos);
 }
 
@@ -14,7 +14,6 @@ static void update_simulation(SimState* state)
     if (!state->initialized)
     {
         // Reset
-        state->sim_arena.next = state->sim_arena.base;
         state->num_entities = 0;
         state->ownship_index = 0;
 
@@ -23,11 +22,11 @@ static void update_simulation(SimState* state)
 
         entity_index = add_entity(state, EntityKind_Ownship);
         state->ownship_index = entity_index;
-        EntityType* ownship = state->entities[entity_index];
+        EntityType* ownship = state->entities + entity_index;
         set_ownship_geo_pos(ownship, vec3(0, 0, 30000));
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        EntityType* entity = state->entities[entity_index];
+        EntityType* entity = state->entities + entity_index;
         set_entity_ned_pos(entity, vec3(NM_TO_FT(28.3f), NM_TO_FT(28.3f), 0), ownship->geo_pos);
         set_entity_heading(entity, -135);
         entity->aircraft.kind = AircraftKind_SU35;
@@ -35,14 +34,14 @@ static void update_simulation(SimState* state)
         add_to_shoot_list(state, entity);
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        entity = state->entities[entity_index];
+        entity = state->entities + entity_index;
         set_entity_ned_pos(entity, vec3(NM_TO_FT(20), 0, 0), ownship->geo_pos);
         entity->aircraft.kind = AircraftKind_F22;
         entity->iff_status = IffStatusType_Friendly;
         add_to_shoot_list(state, entity);
 
         entity_index = add_entity(state, EntityKind_Aircraft);
-        entity = state->entities[entity_index];
+        entity = state->entities + entity_index;
         set_entity_ned_pos(entity, vec3(0, NM_TO_FT(20), 0), ownship->geo_pos);
         entity->aircraft.kind = AircraftKind_F15;
         entity->iff_status = IffStatusType_Neutral;
@@ -92,10 +91,10 @@ static void update_simulation(SimState* state)
     // 4. Package outputs to 1553/Ethernet
     //
 
-    EntityType* ownship = state->entities[state->ownship_index];
+    EntityType* ownship = state->entities + state->ownship_index;
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
-        EntityType* entity = state->entities[entity_index];
+        EntityType* entity = state->entities + entity_index;
 
         switch (entity->kind)
         {

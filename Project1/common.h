@@ -57,8 +57,8 @@ struct SimState {
         bool twenty_hertz;
     } periodic;
 
-    MemoryArena sim_arena;
-    EntityType* entities[1024];
+    MemoryArena* sim_arena;
+    EntityType entities[1024];
     uint32_t num_entities;
 
     uint32_t ownship_index;
@@ -68,6 +68,7 @@ struct SimState {
     RenderState render_state;
 };
 
-
+void set_entity_ned_pos(EntityType* entity, Vec3 new_ned_pos, Vec3 ownship_geo_pos); 
+void set_entity_heading(EntityType* entity, float new_heading);
 int get_shoot_list_priority(SimState* state, EntityType* entity);
 uint32_t get_entity_index(SimState* state, EntityType* entity);

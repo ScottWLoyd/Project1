@@ -100,6 +100,19 @@ static LRESULT window_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return result;
 }
 
+static void dispatch_mouse_button_event(RenderState* state, uint32_t button, bool pressed)
+{
+    if (box_contains_point(state->last_imgui_window,
+        convert_point_to_window_space(state, state->mouse_pos)))
+    {
+        ImGui_MouseButtonCallback(0, pressed);
+    }
+    else
+    {
+        state->mouse_buttons[0] = pressed;
+    }
+}
+
 static void win32_process_pending_messages()
 {
     MSG message;
@@ -133,38 +146,27 @@ static void win32_process_pending_messages()
             case WM_MOUSEMOVE: {
                 Vec2 mouse_pos = Vec2{ (float)(message.lParam & 0xffff), 
                                        (float)((message.lParam >> 16) & 0xffff) };
-
-                // Translate mouse position to the center of the screen and 
-                // y-up, like everything else
-                mouse_pos -= Vec2{ (float)(global_render_state->window_dimensions.width / 2),
-                                   (float)(global_render_state->window_dimensions.height / 2) };
-                mouse_pos.y *= -1.0f;
-                global_render_state->mouse_pos = mouse_pos;
+                
+                global_render_state->mouse_pos = convert_point_to_render_space(global_render_state, mouse_pos);
             } break;
 
             case WM_LBUTTONDOWN: {
-                global_render_state->mouse_buttons[0] = true;
-                ImGui_MouseButtonCallback(0, true);
+                dispatch_mouse_button_event(global_render_state, 0, true);
             } break;
             case WM_LBUTTONUP: {
-                global_render_state->mouse_buttons[0] = false;
-                ImGui_MouseButtonCallback(0, false);
+                dispatch_mouse_button_event(global_render_state, 0, false);
             } break;
             case WM_MBUTTONDOWN: {
-                global_render_state->mouse_buttons[1] = true;
-                ImGui_MouseButtonCallback(1, true);
+                dispatch_mouse_button_event(global_render_state, 1, true);
             } break;
             case WM_MBUTTONUP: {
-                global_render_state->mouse_buttons[1] = false;
-                ImGui_MouseButtonCallback(1, false);
+                dispatch_mouse_button_event(global_render_state, 1, false);
             } break;
             case WM_RBUTTONDOWN: {
-                global_render_state->mouse_buttons[2] = true;
-                ImGui_MouseButtonCallback(2, true);
+                dispatch_mouse_button_event(global_render_state, 2, true);
             } break;
             case WM_RBUTTONUP: {
-                global_render_state->mouse_buttons[2] = false;
-                ImGui_MouseButtonCallback(2, false);
+                dispatch_mouse_button_event(global_render_state, 2, false);
             } break;
 
 
@@ -192,11 +194,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     
     if (RegisterClassEx(&window_class))
     {   
-        SimState state = { 0 };
-        state.time.timescale = 1.0f;
-        InitializeMemoryArena(&state.sim_arena, MEGABYTES(200));
-        InitializeMemoryArena(&state.render_state.arena, MEGABYTES(100));
-        global_render_state = &state.render_state;
+        MemoryArena sim_arena;
+        InitializeMemoryArena(&sim_arena, MEGABYTES(200));
+        SimState* state = push_struct(&sim_arena, SimState);
+        zero_struct(*state);
+        state->sim_arena = &sim_arena;
+        InitializeMemoryArena(&state->render_state.arena, MEGABYTES(100));
+        state->time.timescale = 1.0f;        
+        global_render_state = &state->render_state;
         
         HWND window = InitOpenGL(hInstance);
         init_render_state(global_render_state);
@@ -219,7 +224,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             {
                 win32_process_pending_messages();
 
-                handle_selection_processing(&state);
+                perform_ui_processing(state);
 
                 // NOTE(scott): wait to clear render state until here so that we can 
                 // use it in the event handling above.
@@ -229,24 +234,24 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 QueryPerformanceCounter(&end_counter);
                 float elapsed_seconds = (float)(end_counter.QuadPart - start_counter.QuadPart) / (float)counter_frequency;
                 start_counter = end_counter;
-                state.time.dt = elapsed_seconds;
-                state.time.effective_elapsed = state.time.dt * state.time.timescale;
+                state->time.dt = elapsed_seconds;
+                state->time.effective_elapsed = state->time.dt * state->time.timescale;
 
-                if (!global_paused || !state.initialized)
+                if (!global_paused || !state->initialized)
                 {
-                    update_simulation(&state);
+                    update_simulation(state);
                 }
 
-                state.render_state.window_dimensions = get_window_dimension(window);
+                state->render_state.window_dimensions = get_window_dimension(window);
                 float min_dimension = (float)MIN(global_render_state->window_dimensions.width, global_render_state->window_dimensions.height);
                 global_render_state->feet_to_pixels = (0.5f * min_dimension) / NM_TO_FT(global_render_state->scope_range);
 
-                add_static_render_objects(&state);
-                add_dynamic_render_objects(&state);
+                add_static_render_objects(state);
+                add_dynamic_render_objects(state);
                 render(global_render_state);
 
-                ImGui_ImplGlfwGL2_NewFrame(state.time.dt);
-                render_imgui_windows(&state, &global_paused);
+                ImGui_ImplGlfwGL2_NewFrame(state->time.dt);
+                render_imgui_windows(state, &global_paused);
 
                 HDC device_context = GetDC(window);
                 SwapBuffers(device_context);

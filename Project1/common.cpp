@@ -121,14 +121,18 @@ static Vec3 ecef_to_geo(Vec3 ecef_pos)
 
 static uint32_t add_entity(SimState* state, EntityKind kind)
 {
-    EntityType* entity = push_struct(&state->sim_arena, EntityType);
+    uint32_t index = state->num_entities;
+    EntityType* entity = state->entities + state->num_entities++;
     zero_struct(*entity);
     entity->kind = kind;
 
-    uint32_t index = state->num_entities;
-    state->entities[state->num_entities++] = entity;
-
     return index;
+}
+
+static void remove_entity(SimState* state, uint32_t entity_index)
+{
+    state->entities[entity_index] = state->entities[state->num_entities - 1];
+    state->num_entities--;
 }
 
 #define set_ownship_geo_pos(e, p) set_entity_geo_pos(e, p, p)
@@ -157,7 +161,7 @@ inline static uint32_t get_entity_index(SimState* state, EntityType* entity)
 {
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
     {
-        if (state->entities[entity_index] == entity)
+        if (state->entities + entity_index == entity)
         {
             return entity_index;
         }
@@ -190,7 +194,7 @@ static void remove_from_shoot_list(SimState* state, uint32_t entity_index)
     {
         if (state->shoot_list[index] == entity_index)
         {
-            memcpy(state->shoot_list + index, state->shoot_list + index + 1, state->num_shoot_list - index);
+            memcpy(state->shoot_list + index, state->shoot_list + index + 1, sizeof(uint32_t) * (state->num_shoot_list - index));
             state->num_shoot_list--;
             return;
         }
@@ -241,7 +245,7 @@ static uint32_t get_selected_entity_index(SimState* state)
     // NOTE(scott): skip the null entity since it will be the default selected index
     for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
     {
-        if (state->entities[entity_index]->selected)
+        if (state->entities[entity_index].selected)
         {
             return entity_index;
         }
