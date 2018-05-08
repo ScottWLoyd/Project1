@@ -219,9 +219,11 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
 {
     RenderGroup* render_group = allocate_render_group(&state->render_state, &state->render_state.arena, entity, state);
 
+    bool is_selected = state->render_state.selected_entity_index == get_entity_index(state, entity);
+
     float ownship_heading = RADIANS(state->entities[state->ownship_index].aircraft.heading);
-    float slant_range = mag(entity->ned_pos);
-    float bearing = atan2f(entity->ned_pos.e, entity->ned_pos.n);
+    float slant_range = mag(entity->pos.ned);
+    float bearing = atan2f(entity->pos.ned.e, entity->pos.ned.n);
     Vec2 center = vec2(slant_range*sinf(bearing - ownship_heading),
                        slant_range*cosf(bearing - ownship_heading));
     center *= state->render_state.feet_to_pixels;
@@ -240,10 +242,10 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
         RenderObject* circle = push_render_object(render_group, RenderObjectFillCircle);
         circle->circle.center = center;
         circle->circle.radius = 23;
-        circle->circle.line_width = (GLfloat)(entity->selected ? 2 : 1);
+        circle->circle.line_width = (GLfloat)(is_selected ? 2 : 1);
         circle->color = iff_status_to_color[entity->iff_status];
     }
-    if (entity->selected)   // Hovered/clicked
+    if (is_selected)   // Hovered/clicked
     {
         RenderObject* circle = push_render_object(render_group, RenderObjectCircle);
         circle->circle.center = center;
@@ -372,12 +374,11 @@ static void perform_ui_processing(SimState* state)
         float slant_range = mag(screen_pos);
         Vec3 ned_pos = { slant_range * sinf(bearing - ownship_heading), slant_range * cosf(bearing - ownship_heading), 0 };
         ned_pos *= 1.0f / render_state->feet_to_pixels;
-        set_entity_ned_pos(entity, ned_pos, ownship->geo_pos);
+        set_entity_ned_pos(entity, ned_pos, ownship->pos.geo);
         set_entity_heading(entity, ownship->aircraft.heading);
 
         if (clicked)
         {
-            render_state->control_event_point = screen_pos;
             render_state->control_event = ControlEvent_SetTargetHeading;
         }
     }
@@ -392,7 +393,7 @@ static void perform_ui_processing(SimState* state)
         float slant_range = mag(screen_pos);
         Vec3 ned_pos = { slant_range * sinf(bearing - ownship_heading), slant_range * cosf(bearing - ownship_heading), 0 };
         ned_pos *= 1.0f / render_state->feet_to_pixels;
-        Vec3 heading_vector = ned_pos - entity->ned_pos;
+        Vec3 heading_vector = ned_pos - entity->pos.ned;
         float azimuth = atan2f(heading_vector.e, heading_vector.n);
         set_entity_heading(entity, DEGREES(azimuth));
 
@@ -446,15 +447,13 @@ static void perform_ui_processing(SimState* state)
     if (clicked && selected_entity_index == 0)
     {
         // clicked empty space - deselect everything
-        for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
-        {
-            EntityType* entity = state->entities + entity_index;
-            entity->selected = false;
-            entity->selection_state = SelectionState_None;
-        }
+        render_state->selection_state = SelectionState_None;
+        render_state->selected_entity_index = 0;
     }
-    else
+    else //if (selected_entity_index > 0)
     {
+        
+#if 0
         for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
         {
             EntityType* entity = state->entities + entity_index;
@@ -473,6 +472,7 @@ static void perform_ui_processing(SimState* state)
                 entity->selection_state = SelectionState_None;
             }
         }
+#endif
     }
 }
 

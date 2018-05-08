@@ -5,8 +5,8 @@ static void update_entity_position(SimState* state, EntityType* entity)
     // NOTE(scott): we typically want to update kinematics in ECEF
     // and then translate into geo and NED. Graphics are derived
     // from NED coordinates.
-    entity->ned_pos = ecef_to_ned(state->entities[state->ownship_index].geo_pos, entity->ecef_pos);
-    entity->geo_pos = ecef_to_geo(entity->ecef_pos);
+    entity->pos.ned = ecef_to_ned(state->entities[state->ownship_index].pos.geo, entity->pos.ecef);
+    entity->pos.geo = ecef_to_geo(entity->pos.ecef);
 }
 
 static void update_simulation(SimState* state)
@@ -27,7 +27,7 @@ static void update_simulation(SimState* state)
 
         entity_index = add_entity(state, EntityKind_Aircraft);
         EntityType* entity = state->entities + entity_index;
-        set_entity_ned_pos(entity, vec3(NM_TO_FT(28.3f), NM_TO_FT(28.3f), 0), ownship->geo_pos);
+        set_entity_ned_pos(entity, vec3(NM_TO_FT(28.3f), NM_TO_FT(28.3f), 0), ownship->pos.geo);
         set_entity_heading(entity, -135);
         entity->aircraft.kind = AircraftKind_SU35;
         entity->iff_status = IffStatusType_Hostile;
@@ -35,14 +35,14 @@ static void update_simulation(SimState* state)
 
         entity_index = add_entity(state, EntityKind_Aircraft);
         entity = state->entities + entity_index;
-        set_entity_ned_pos(entity, vec3(NM_TO_FT(20), 0, 0), ownship->geo_pos);
+        set_entity_ned_pos(entity, vec3(NM_TO_FT(20), 0, 0), ownship->pos.geo);
         entity->aircraft.kind = AircraftKind_F22;
         entity->iff_status = IffStatusType_Friendly;
         add_to_shoot_list(state, entity);
 
         entity_index = add_entity(state, EntityKind_Aircraft);
         entity = state->entities + entity_index;
-        set_entity_ned_pos(entity, vec3(0, NM_TO_FT(20), 0), ownship->geo_pos);
+        set_entity_ned_pos(entity, vec3(0, NM_TO_FT(20), 0), ownship->pos.geo);
         entity->aircraft.kind = AircraftKind_F15;
         entity->iff_status = IffStatusType_Neutral;
         add_to_shoot_list(state, entity);
@@ -107,7 +107,7 @@ static void update_simulation(SimState* state)
                 if (entity->iff_status == IffStatusType_Hostile)
                 {
                     float delta_pos = state->time.effective_elapsed * 1000.0f;
-                    set_entity_ned_pos(entity, entity->ned_pos - vec3(delta_pos, delta_pos, 0), ownship->geo_pos);
+                    set_entity_ned_pos(entity, entity->pos.ned - vec3(delta_pos, delta_pos, 0), ownship->pos.geo);
                 }
                 else if (entity->iff_status == IffStatusType_Friendly)
                 {

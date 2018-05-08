@@ -73,7 +73,9 @@ struct RenderState {
 
     ControlEvent control_event;
     uint32_t control_event_entity_index;
-    Vec2 control_event_point;
+
+    uint32_t selection_state;
+    uint32_t selected_entity_index;    
 
     int scope_range;
     float feet_to_pixels;

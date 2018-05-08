@@ -28,18 +28,25 @@ enum EntityKind {
 struct EntityType {
     EntityKind kind;
     IffStatusType iff_status;
-    Vec3 geo_pos;   // lat, lon, alt; degrees, feet
-    Vec3 ecef_pos;  // feet
-    Vec3 ned_pos;   // north, east, down; feet
+    struct {
+        Vec3 geo;   // lat, lon, alt; degrees, feet
+        Vec3 ecef;  // feet
+        Vec3 ned;   // north, east, down; feet
+    } pos;
+    struct {
+        Vec3 ecef;  // feet / sec
+        Vec3 ned;   // north, east, down; feet / sec
+    } vel;
+    struct {
+        Vec3 ecef;  // feet / sec
+        Vec3 ned;   // north, east, down; feet / sec
+    } acc;
     union {
         struct {
             AircraftKind kind;
-            float heading;
+            float heading;  // north referenced; degrees
         } aircraft;
     };
-
-    bool selected;
-    uint32_t selection_state;
 };
 
 struct SimState {

@@ -139,16 +139,16 @@ static void remove_entity(SimState* state, uint32_t entity_index)
 
 static void set_entity_geo_pos(EntityType* entity, Vec3 new_geo_pos, Vec3 ownship_geo_pos)
 {
-    entity->geo_pos = new_geo_pos;
-    entity->ecef_pos = geo_to_ecef(entity->geo_pos);
-    entity->ned_pos = ecef_to_ned(ownship_geo_pos, entity->ecef_pos);
+    entity->pos.geo = new_geo_pos;
+    entity->pos.ecef = geo_to_ecef(entity->pos.geo);
+    entity->pos.ned = ecef_to_ned(ownship_geo_pos, entity->pos.ecef);
 }
 
 static void set_entity_ned_pos(EntityType* entity, Vec3 new_ned_pos, Vec3 ownship_geo_pos)
 {
-    entity->ned_pos = new_ned_pos;
-    entity->ecef_pos = ned_to_ecef(ownship_geo_pos, new_ned_pos);
-    entity->geo_pos = ecef_to_geo(entity->ecef_pos);
+    entity->pos.ned = new_ned_pos;
+    entity->pos.ecef = ned_to_ecef(ownship_geo_pos, new_ned_pos);
+    entity->pos.geo = ecef_to_geo(entity->pos.ecef);
 }
 
 static void set_entity_heading(EntityType* entity, float new_heading)
@@ -238,17 +238,4 @@ static int get_shoot_list_priority(SimState* state, EntityType* entity)
 static bool target_in_shoot_list(SimState* state, uint32_t entity_index)
 {
     return get_shoot_list_priority(state, entity_index) > -1;
-}
-
-static uint32_t get_selected_entity_index(SimState* state)
-{
-    // NOTE(scott): skip the null entity since it will be the default selected index
-    for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
-    {
-        if (state->entities[entity_index].selected)
-        {
-            return entity_index;
-        }
-    }
-    return 0;
 }
