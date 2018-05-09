@@ -9,6 +9,11 @@ enum RenderObjectType {
     RenderObjectCompass,
 };
 
+enum UnitsType {
+    UnitsType_Pixels,
+    UnitsType_Normalized,
+};
+
 struct RenderObject {
     RenderObjectType type;
     Vec3 color;
@@ -23,6 +28,7 @@ struct RenderObject {
             Vec2 scale;
         } textured_rect;
         struct {
+            UnitsType units;
             Vec2 center;
             float radius;
             GLfloat line_width;

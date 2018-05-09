@@ -180,7 +180,7 @@ static void set_color(Vec3 color)
     glColor3f(color.r, color.g, color.b);
 }
 
-static void draw_circle(float center_x, float center_y, float radius, Vec3 color, GLfloat line_width = 1.0f, bool fill = false)
+static void draw_circle(float center_x, float center_y, float radius_pixels, Vec3 color, GLfloat line_width = 1.0f, bool fill = false)
 {
     // TODO(scott): subpixel alignment?
     GLuint type = fill ? GL_TRIANGLE_FAN : GL_LINE_LOOP;
@@ -192,8 +192,8 @@ static void draw_circle(float center_x, float center_y, float radius, Vec3 color
     float scalar = TWO_PI / num_points;
     for (int i = 0; i < num_points; i++)
     {
-        float x = center_x + radius * cosf(i * scalar);
-        float y = center_y + radius * sinf(i * scalar);
+        float x = center_x + radius_pixels * cosf(i * scalar);
+        float y = center_y + radius_pixels * sinf(i * scalar);
         glVertex2f(x, y);
     }
     glEnd();
@@ -244,6 +244,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     {
         RenderObject* circle = push_render_object(render_group, RenderObjectFillCircle);
         circle->circle.center = center;
+        circle->circle.units = UnitsType_Pixels;
         circle->circle.radius = 23;
         circle->circle.line_width = (GLfloat)((is_selected || is_hovered) ? 2 : 1);
         circle->color = iff_status_to_color[entity->iff_status];
@@ -252,6 +253,7 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     {
         RenderObject* circle = push_render_object(render_group, RenderObjectCircle);
         circle->circle.center = center;
+        circle->circle.units = UnitsType_Pixels;
         circle->circle.radius = 25;
         circle->circle.line_width = 1;
         circle->color = iff_status_to_color[entity->iff_status];
@@ -283,22 +285,28 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
     render_group->pickable = true;    
 }
 
+static Vec2 get_sit_center_point(RenderState* state);
+
 static void add_static_render_objects(SimState* state)
 {
     RenderState* render_state = &state->render_state;
     RenderGroup* group = allocate_render_group(render_state, &render_state->arena, NULL, state);
+    Vec2 center = get_sit_center_point(&state->render_state);
+
     // Outer range ring
     RenderObject* obj = push_render_object(group, RenderObjectCircle);
     obj->circle.center = vec2(0, 0);
     int min_dim = MIN(render_state->window_dimensions.width, render_state->window_dimensions.height);
-    obj->circle.radius = (float)(min_dim / 2);
+    obj->circle.units = UnitsType_Normalized;
+    obj->circle.radius = 1.0f;
     obj->circle.line_width = 1;
     obj->color = ColorWhite;
 
     // Inner range ring
     obj = push_render_object(group, RenderObjectCircle);
+    obj->circle.units = UnitsType_Normalized;
     obj->circle.center = vec2(0, 0);
-    obj->circle.radius = (float)(min_dim / 4);
+    obj->circle.radius = 0.5f;
     obj->circle.line_width = 1;
     obj->color = ColorWhite;
 
@@ -343,8 +351,7 @@ static void add_dynamic_render_objects(SimState* state)
 static Vec2 convert_point_to_render_space(RenderState* state, Vec2 pt)
 {
     // Translate to the center of the window and y-up
-    pt -= Vec2{ (float)(state->window_dimensions.width / 2),
-                (float)(state->window_dimensions.height / 2) };
+    pt -= get_sit_center_point(state);
     pt.y *= -1.0f;
     return pt;
 }
@@ -353,8 +360,7 @@ static Vec2 convert_point_to_window_space(RenderState* state, Vec2 pt)
 {
     // Translate to the top left of window and y-down
     pt.y *= -1.0f;
-    pt += Vec2{ (float)(state->window_dimensions.width / 2),
-                (float)(state->window_dimensions.height / 2) };
+    pt += get_sit_center_point(state);
     return pt;
 }
 
@@ -486,6 +492,18 @@ static void perform_ui_processing(SimState* state)
     }
 }
 
+static Vec2 get_sit_center_point(RenderState* state)
+{
+    Vec2 result;
+    float height = (float)state->window_dimensions.height;
+    float data_window_width = state->last_imgui_window.bottom_right.x - state->last_imgui_window.top_left.x;
+    float effective_width = state->window_dimensions.width - data_window_width;
+    result.x = effective_width / 2.0f;
+    result.y = height / 2.0f;
+
+    return result;
+}
+
 static void render(RenderState* state)
 {
     glViewport(0, 0, state->window_dimensions.width, state->window_dimensions.height);
@@ -510,11 +528,7 @@ static void render(RenderState* state)
     };
     glLoadMatrixf(proj);
 
-    float min_dimension = (float)state->window_dimensions.height;
-    if (state->window_dimensions.width < min_dimension)
-    {
-        min_dimension = (float)state->window_dimensions.width;
-    }
+    Vec2 center = get_sit_center_point(state);
 
     for (uint32_t render_index = 0; render_index < state->num_render_groups; render_index++)
     {
@@ -535,10 +549,11 @@ static void render(RenderState* state)
                     glBindTexture(GL_TEXTURE_2D, object->textured_rect.texture_id);
 
                     glMatrixMode(GL_MODELVIEW);
-                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
-                                    (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
+                    
+                    Vec2 local_center = center + object->textured_rect.center;
+
                     glPushMatrix();
-                    glTranslatef(center.x, center.y, 0);
+                    glTranslatef(local_center.x, local_center.y, 0);
                     float degrees = object->textured_rect.rotation;
                     glRotatef(degrees, 0, 0, 1);
                     Vec2 min_p = { -object->textured_rect.dim.x / 2, -object->textured_rect.dim.y / 2 };
@@ -560,26 +575,34 @@ static void render(RenderState* state)
                 } break;
 
                 case RenderObjectCircle: {
-                
-                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
-                                    (state->window_dimensions.height * 0.5f) + object->circle.center.y };
-                    draw_circle(center.x, center.y, object->circle.radius, object->color, object->circle.line_width);
+
+                    Vec2 local_center = center + object->circle.center;
+                    float radius;
+                    if (object->circle.units == UnitsType_Pixels)
+                    {
+                        radius = object->circle.radius;
+                    }
+                    else
+                    {
+                        assert(object->circle.units == UnitsType_Normalized);
+                        radius = object->circle.radius * MIN(center.x, center.y); // convert to pixels
+                    }
+                    draw_circle(local_center.x, local_center.y, radius, object->color, object->circle.line_width);
                 
                 } break;
 
                 case RenderObjectFillCircle: {
 
-                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->circle.center.x,
-                                    (state->window_dimensions.height * 0.5f) + object->circle.center.y };
-                    draw_circle(center.x, center.y, object->circle.radius, object->color, object->circle.line_width, true);
+                    Vec2 local_center = center + object->circle.center;
+                    draw_circle(local_center.x, local_center.y, object->circle.radius, object->color, object->circle.line_width, true);
 
                 } break;
 
                 case RenderObjectText: {
-                
-                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->textured_rect.center.x,
-                                    (state->window_dimensions.height * 0.5f) + object->textured_rect.center.y };
-                    float x = (state->window_dimensions.width * 0.5f) + (min_dimension * 0.4f);
+
+                    Vec2 local_center = center + object->textured_rect.center;
+                    // TODO(scott): fix this alignment 
+                    float x = (state->window_dimensions.width * 0.5f) + (state->window_dimensions.height * 0.4f);
                     float y = state->window_dimensions.height - 20.0f;
                     // origin at center, units in screen pixels
                     glEnable(GL_TEXTURE_2D);
@@ -602,10 +625,10 @@ static void render(RenderState* state)
                 } break;
 
                 case RenderObjectCompass: {
-                
-                    Vec2 center = { (state->window_dimensions.width * 0.5f) + object->compass.center.x,
-                                    (state->window_dimensions.height * 0.5f) + object->compass.center.y };
-                    float radius = 0.5f * min_dimension * object->compass.radius;
+
+                    Vec2 local_center = center + object->compass.center;
+                    float scale = MIN(local_center.x, local_center.y);
+                    float radius = scale * object->compass.radius;
                     set_color(object->color);
                     glBegin(GL_LINES);
                     for (int degrees = 0; degrees < 360; degrees += 10)
@@ -619,17 +642,17 @@ static void render(RenderState* state)
                         {
                             inner_scalar = 0.85f;
                         }
-                        float x1 = center.x + radius * sinf(RADIANS(degrees));
-                        float y1 = center.y + radius * cosf(RADIANS(degrees));
-                        float x2 = center.x + inner_scalar * radius * sinf(RADIANS(degrees));
-                        float y2 = center.y + inner_scalar * radius * cosf(RADIANS(degrees));
+                        float x1 = local_center.x + radius * sinf(RADIANS(degrees));
+                        float y1 = local_center.y + radius * cosf(RADIANS(degrees));
+                        float x2 = local_center.x + inner_scalar * radius * sinf(RADIANS(degrees));
+                        float y2 = local_center.y + inner_scalar * radius * cosf(RADIANS(degrees));
                         glVertex2f(x1, y1);
                         glVertex2f(x2, y2);
                     }
                     glEnd();
                     glMatrixMode(GL_MODELVIEW);
                     glPushMatrix();
-                    glTranslatef(center.x, center.y, 0);
+                    glTranslatef(local_center.x, local_center.y, 0);
                     glRotatef(-object->compass.rotation, 0, 0, 1);
                     set_color(ColorCyan);
                     glBegin(GL_TRIANGLES);
@@ -649,8 +672,6 @@ static void render(RenderState* state)
 
                 case RenderObjectLine: {
 
-                    Vec2 center = { (state->window_dimensions.width * 0.5f),
-                                    (state->window_dimensions.height * 0.5f) };
                     Vec2 start = center + object->line.start;
                     Vec2 end = center + object->line.end;
                     set_color(object->color);

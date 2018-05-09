@@ -41,8 +41,13 @@ static POINT get_mouse_position_in_client()
 void render_imgui_windows(SimState* state, bool* paused)
 {
     static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    // 1. Show a simple window.
-    // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets automatically appears in a window called "Debug".
+    
+    float width = 300.0f;
+    ImVec2 size = ImVec2{ width, (float)state->render_state.window_dimensions.height };
+    ImGui::SetNextWindowSize(size);
+    ImVec2 pos = ImVec2{ (float)state->render_state.window_dimensions.width - width, 0 };
+    ImGui::SetNextWindowPos(pos);
+    ImGui::Begin("Simulation Control");
     {
         ImGui::Text("Debug");
         POINT mouse_pos = get_mouse_position_in_client();
@@ -169,6 +174,7 @@ void render_imgui_windows(SimState* state, bool* paused)
         Vec2 bottom_right = top_left + Vec2{ max.x, max.y };
         state->render_state.last_imgui_window = Box{ top_left, bottom_right };
     }
+    ImGui::End();
 
     ImGui::Render();
     ImGui_ImplGlfwGL2_RenderDrawData(ImGui::GetDrawData());

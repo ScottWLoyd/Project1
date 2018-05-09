@@ -8,8 +8,6 @@ Roadmap:
     - Scenario input file reading
     - Hotloading for scenarios
     - Configure for HITL of selected subsystems
-    - Better window layout
-        - align SIT to left/right, maximize remaining space for data dump/control, etc.
     - Armament config
         - AIM-9X threshold
         - AIM-120 objective
@@ -21,6 +19,11 @@ Roadmap:
     - Display az & el LOS data
     - Visually display LOS locklines
         - to include elevation somehow
+
+Done but needs testing:
+
+    - Better window layout
+        - align SIT to left/right, maximize remaining space for data dump/control, etc.
 
 */
 
@@ -269,8 +272,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 }
 
                 state->render_state.window_dimensions = get_window_dimension(window);
-                float min_dimension = (float)MIN(global_render_state->window_dimensions.width, global_render_state->window_dimensions.height);
-                global_render_state->feet_to_pixels = (0.5f * min_dimension) / NM_TO_FT(global_render_state->scope_range);
+                Vec2 center = get_sit_center_point(&state->render_state);
+                float min_dimension = (float)MIN(center.x, center.y);
+                global_render_state->feet_to_pixels = min_dimension / NM_TO_FT(global_render_state->scope_range);
 
                 add_static_render_objects(state);
                 add_dynamic_render_objects(state);
