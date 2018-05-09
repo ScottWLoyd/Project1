@@ -69,7 +69,7 @@ struct SimState {
     } periodic;
 
     MemoryArena* sim_arena;
-    EntityType entities[1024];
+    EntityType entities[MAX_ENTITY_COUNT];
     uint32_t num_entities;
 
     uint32_t ownship_index;

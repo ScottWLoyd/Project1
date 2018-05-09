@@ -53,7 +53,7 @@ struct TextureEntry {
 
 enum SelectionState {
     SelectionState_None     = 0,
-    SelectionState_Hover    = (1 << 0),
+    SelectionState_Hovered  = (1 << 0),
     SelectionState_Selected = (1 << 1),
 };
 
@@ -63,7 +63,13 @@ enum ControlEvent {
     ControlEvent_SetTargetHeading,
 };
 
-#define MAX_NUM_RENDER_GROUPS 512
+enum {
+    MAX_NUM_RENDER_GROUPS = 512,
+};
+
+enum {
+    MAX_ENTITY_COUNT = 128,
+};
 
 struct RenderState {
     WindowDimension window_dimensions;
@@ -74,8 +80,7 @@ struct RenderState {
     ControlEvent control_event;
     uint32_t control_event_entity_index;
 
-    uint32_t selection_state;
-    uint32_t selected_entity_index;    
+    uint32_t entity_selection_states[MAX_ENTITY_COUNT];
 
     int scope_range;
     float feet_to_pixels;

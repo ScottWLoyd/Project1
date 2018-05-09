@@ -219,7 +219,10 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
 {
     RenderGroup* render_group = allocate_render_group(&state->render_state, &state->render_state.arena, entity, state);
 
-    bool is_selected = state->render_state.selected_entity_index == get_entity_index(state, entity);
+    uint32_t entity_index = get_entity_index(state, entity);
+    // TODO(scott): differentiate visually between hovered and selected?
+    bool is_selected = (state->render_state.entity_selection_states[entity_index] & SelectionState_Selected) > 0;
+    bool is_hovered = (state->render_state.entity_selection_states[entity_index] & SelectionState_Hovered) > 0;
 
     float ownship_heading = RADIANS(state->entities[state->ownship_index].aircraft.heading);
     float slant_range = mag(entity->pos.ned);
@@ -242,10 +245,10 @@ static void add_aircraft_render_object(SimState* state, EntityType* entity, floa
         RenderObject* circle = push_render_object(render_group, RenderObjectFillCircle);
         circle->circle.center = center;
         circle->circle.radius = 23;
-        circle->circle.line_width = (GLfloat)(is_selected ? 2 : 1);
+        circle->circle.line_width = (GLfloat)((is_selected || is_hovered) ? 2 : 1);
         circle->color = iff_status_to_color[entity->iff_status];
     }
-    if (is_selected)   // Hovered/clicked
+    if (is_selected || is_hovered)   // Hovered/clicked
     {
         RenderObject* circle = push_render_object(render_group, RenderObjectCircle);
         circle->circle.center = center;
@@ -355,6 +358,18 @@ static Vec2 convert_point_to_window_space(RenderState* state, Vec2 pt)
     return pt;
 }
 
+static uint32_t get_selected_entity_index(RenderState* state)
+{
+    for (uint32_t entity_index = 1; entity_index < ArrayCount(state->entity_selection_states); entity_index++)
+    {
+        if ((state->entity_selection_states[entity_index] & SelectionState_Selected) > 0)
+        {
+            return entity_index;
+        }
+    }
+    return 0;
+}
+
 static void perform_ui_processing(SimState* state)
 {
     RenderState* render_state = &state->render_state;
@@ -414,12 +429,6 @@ static void perform_ui_processing(SimState* state)
                     if (box_contains_point(group->bounding.box, render_state->mouse_pos))
                     {
                         selected_entity_index = group->entity_index;
-                        selection_state = SelectionState_Hover;
-
-                        if (clicked)
-                        {
-                            selection_state |= SelectionState_Selected;
-                        }
                         break;
                     }
                 }
@@ -429,12 +438,6 @@ static void perform_ui_processing(SimState* state)
                     if (circle_contains_point(group->bounding.circle, render_state->mouse_pos))
                     {
                         selected_entity_index = group->entity_index;
-                        selection_state = SelectionState_Hover;
-
-                        if (clicked)
-                        {
-                            selection_state |= SelectionState_Selected;
-                        }
                         break;
                     }
                 }
@@ -444,35 +447,42 @@ static void perform_ui_processing(SimState* state)
 
     memcpy(last_mouse_buttons, render_state->mouse_buttons, sizeof(last_mouse_buttons));
 
-    if (clicked && selected_entity_index == 0)
+    if (clicked)
     {
-        // clicked empty space - deselect everything
-        render_state->selection_state = SelectionState_None;
-        render_state->selected_entity_index = 0;
-    }
-    else //if (selected_entity_index > 0)
-    {
-        
-#if 0
-        for (uint32_t entity_index = 1; entity_index < state->num_entities; entity_index++)
+        if (selected_entity_index == 0)
         {
-            EntityType* entity = state->entities + entity_index;
-            if (entity_index == selected_entity_index)
+            // clicked empty space - deselect everything
+            for (uint32_t entity_index = 1; entity_index < ArrayCount(render_state->entity_selection_states); entity_index++)
             {
-                entity->selected = true;
-                entity->selection_state |= selection_state;
-            }
-            else if ((selection_state & SelectionState_Selected) && entity->selection_state & SelectionState_Selected)
-            {
-                entity->selection_state ^= SelectionState_Selected;
-            }
-            else if (0 == (entity->selection_state & SelectionState_Selected))
-            {
-                entity->selected = false;
-                entity->selection_state = SelectionState_None;
+                render_state->entity_selection_states[entity_index] = SelectionState_None;
             }
         }
-#endif
+        else
+        {
+            // clicked an entity - select it and deselect what was selected before
+            for (uint32_t entity_index = 1; entity_index < ArrayCount(render_state->entity_selection_states); entity_index++)
+            {
+                render_state->entity_selection_states[entity_index] = SelectionState_None;
+            }
+            render_state->entity_selection_states[selected_entity_index] |= SelectionState_Selected;
+        }
+    }
+    else
+    {
+        if (selected_entity_index)
+        {
+            // highlighted an entity - set it as hovered in addition to anything else
+            render_state->entity_selection_states[selected_entity_index] |= SelectionState_Hovered;
+        }
+        else
+        {
+            // not hovering anything - remove hover status from all entities
+            for (uint32_t entity_index = 1; entity_index < ArrayCount(render_state->entity_selection_states); entity_index++)
+            {
+                // TODO(scott): @performance: check this to see if it's a bottleneck
+                render_state->entity_selection_states[entity_index] &= ~SelectionState_Hovered;
+            }
+        }
     }
 }
 

@@ -49,7 +49,7 @@ void render_imgui_windows(SimState* state, bool* paused)
         ImGui::Text("mouse: %d, %d", mouse_pos.x, mouse_pos.y);
         Box last_box = state->render_state.last_imgui_window;
         ImGui::Text("content box: %f, %f, %f, %f", last_box.top_left.x, last_box.top_left.y, last_box.bottom_right.x, last_box.bottom_right.y);
-        uint32_t selected_entity_index = state->render_state.selected_entity_index;
+        uint32_t selected_entity_index = get_selected_entity_index(&state->render_state);
         ImGui::Text("Selected entity: %d/%d", selected_entity_index, state->num_entities);
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
