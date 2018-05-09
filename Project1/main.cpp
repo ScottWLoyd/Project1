@@ -1,3 +1,29 @@
+/*
+Roadmap:
+
+    - Kinematic simulation
+        - velocity/acceleration integration
+    - 1553 packing/unpacking
+    - Ethernet packing/unpacking
+    - Scenario input file reading
+    - Hotloading for scenarios
+    - Configure for HITL of selected subsystems
+    - Better window layout
+        - align SIT to left/right, maximize remaining space for data dump/control, etc.
+    - Armament config
+        - AIM-9X threshold
+        - AIM-120 objective
+    - Radar sim
+        - scan pattern & volume
+        - modes SWT/STT
+    - JHMCS sim
+        - graphical control of LOS
+    - Display az & el LOS data
+    - Visually display LOS locklines
+        - to include elevation somehow
+
+*/
+
 #define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
 #include <inttypes.h>
