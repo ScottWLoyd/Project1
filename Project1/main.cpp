@@ -6,8 +6,11 @@ Roadmap:
     - 1553 packing/unpacking
     - Ethernet packing/unpacking
     - Scenario input file reading
-    - Hotloading for scenarios
-    - Configure for HITL of selected subsystems
+    - Configuration file:
+        - Simulated vs HITL subsystems
+        - pointer to scenario?
+        - pointer to hotas config
+    - Hotloading for scenarios/config
     - Armament config
         - AIM-9X threshold
         - AIM-120 objective
@@ -19,6 +22,9 @@ Roadmap:
     - Display az & el LOS data
     - Visually display LOS locklines
         - to include elevation somehow
+    - HOTAS input
+        - maybe a list of mappings loaded from a configuration file?
+    - PAD input    
 
 Done but needs testing:
 
@@ -72,6 +78,7 @@ Done but needs testing:
 #include "imgui_impl.h"
 #include "render_group.cpp"
 #include "render.cpp"
+#include "nav.cpp"
 #include "common.cpp"
 #include "simulation.cpp"
 #include "imgui/imgui.h"

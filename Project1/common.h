@@ -29,9 +29,11 @@ struct EntityType {
     EntityKind kind;
     IffStatusType iff_status;
     struct {
-        Vec3 geo;   // lat, lon, alt; degrees, feet
-        Vec3 ecef;  // feet
-        Vec3 ned;   // north, east, down; feet
+        Vec3 geo;     // lat, lon, alt; degrees, feet
+        Vec3 ecef;    // feet
+        Vec3 ned;     // north, east, down; feet
+        Vec3 sphere;  // az, el, range; referenced from ownship nose, degrees, feet
+        Vec3 body;    // (UVW) x positive out nose, y positive out right wing, z positive down
     } pos;
     struct {
         Vec3 ecef;  // feet / sec

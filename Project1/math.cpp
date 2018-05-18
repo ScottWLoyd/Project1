@@ -169,6 +169,46 @@ float mag(Vec3 v)
 }
 
 //
+// Matrices
+//
+
+Mat4 transpose(Mat4 m)
+{
+    Mat4 result;
+    result.col[0].x = m.col[0].x; result.col[0].y = m.col[1].x; result.col[0].z = m.col[2].x; result.col[0].w = m.col[3].x;
+    result.col[1].x = m.col[0].y; result.col[1].y = m.col[1].y; result.col[1].z = m.col[2].y; result.col[1].w = m.col[3].y;
+    result.col[2].x = m.col[0].z; result.col[2].y = m.col[1].z; result.col[2].z = m.col[2].z; result.col[2].w = m.col[3].z;
+    result.col[3].x = m.col[0].w; result.col[3].y = m.col[1].w; result.col[3].z = m.col[2].w; result.col[3].w = m.col[3].w;
+    return result;
+}
+
+void matrix_test(void)
+{
+    Mat4 m;
+    for (int i = 0; i < 16; i++)
+    {
+        m.e[i] = i;
+    }
+    Mat4 t = transpose(m);
+    assert(t.col[0].x == 0);
+    assert(t.col[1].x == 0);
+    assert(t.col[2].x == 0);
+    assert(t.col[3].x == 0);
+    assert(t.col[0].y == 0);
+    assert(t.col[1].y == 0);
+    assert(t.col[2].y == 0);
+    assert(t.col[3].y == 0);
+    assert(t.col[0].z == 0);
+    assert(t.col[1].z == 0);
+    assert(t.col[2].z == 0);
+    assert(t.col[3].z == 0);
+    assert(t.col[0].w == 0);
+    assert(t.col[1].w == 0);
+    assert(t.col[2].w == 0);
+    assert(t.col[3].w == 0);
+}
+
+//
 // Geometry
 //
 

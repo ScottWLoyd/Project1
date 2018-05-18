@@ -1,12 +1,11 @@
+
+//
+// Constants
+//
+
 #define PI 3.14159265359f
 #define TWO_PI 2.0f*PI
 #define PI_OVER_TWO PI*0.5f
-
-// WGS-84 Constants
-#define WGS84_A     20925646.0f         // semi-major axis (feet)
-#define WGS84_1_f   298.257223563f      // inverse flattening
-#define WGS84_E     8.1819190842622e-2f // first eccentricity
-#define WGS84_E2    6.69437999014e-3f   // first eccentricity squared
 
 #define RADIANS(d) ((d) * PI / 180)
 #define DEGREES(r) ((r) * 180 / PI)
@@ -19,6 +18,10 @@
 #define MIN(x,y) (x < y ? x : y)
 #define CLAMP(min, val, max) ((val)<(min)?(val)=(min):(val)>(max)?(val)=(max):(void)(val))
 #define ArrayCount(arr) (sizeof(arr)/sizeof(arr[0]))
+
+//
+// Vectors
+//
 
 union Vec2 {
     struct {
@@ -40,6 +43,9 @@ float mag2(Vec2 v);
 float mag(Vec2 v);
 
 union Vec3 {
+    struct {
+        float u, v, w;
+    };
     struct {
         float x, y, z;
     };
@@ -66,6 +72,52 @@ Vec3& operator*=(Vec3& left, Vec3& right);
 
 float mag2(Vec3 v);
 float mag(Vec3 v);
+
+union Vec4 {
+    struct {
+        float x, y, z, w;
+    };
+    struct {
+        float r, g, b, a;
+    };
+    struct {
+        Vec3 xyz;
+        float w;
+    };
+    float e[4];
+};
+
+//
+// Matracies
+//
+
+union Mat2 {
+    struct {
+        Vec2 x, y;
+    };
+    Vec4 col[2];
+    float e[4];
+};
+
+union Mat3 {
+    struct {
+        Vec3 x, y, z;
+    };
+    Vec4 col[3];
+    float e[9];
+};
+
+union Mat4 {
+    struct {
+        Vec4 x, y, z, w;
+    };
+    Vec4 col[4];
+    float e[16];
+};
+
+Mat4 transpose(Mat4);
+Mat4 inverse(Mat4);
+Mat4 operator*(Mat4 left, Mat4 right);
 
 //
 // Geometry
