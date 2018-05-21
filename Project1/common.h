@@ -33,20 +33,19 @@ struct EntityType {
         Vec3 ecef;    // feet
         Vec3 ned;     // north, east, down; feet
         Vec3 sphere;  // az, el, range; referenced from ownship nose, degrees, feet
-        Vec3 body;    // (UVW) x positive out nose, y positive out right wing, z positive down
+        //Vec3 body;    // x positive out nose, y positive out right wing, z positive down
     } pos;
-    struct {
-        Vec3 ecef;  // feet / sec
-        Vec3 ned;   // north, east, down; feet / sec
-    } vel;
-    struct {
-        Vec3 ecef;  // feet / sec
-        Vec3 ned;   // north, east, down; feet / sec
-    } acc;
+    Vec3 ecef_vel;
+    Vec3 ecef_acc; 
+    // Yaw, pitch, roll (UVW)
+    Vec3 rot;
+    Vec3 rot_vel;
+    Vec3 rot_acc;
     union {
         struct {
             AircraftKind kind;
             float heading;  // north referenced; degrees
+            float airspeed; // TODO(scott): think about doing groundspeed instead?
         } aircraft;
     };
 };

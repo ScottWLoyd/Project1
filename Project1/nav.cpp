@@ -43,58 +43,6 @@
 #endif
 
 
-
-static Mat4 body_to_nav_transform(Vec3 body_rot)
-{
-
-}
-
-static Vec3 geo_to_ecef(Vec3 geo_pos)
-{
-    Vec3 result;
-    float clat = cosf(RADIANS(geo_pos.lat));
-    float slat = sinf(RADIANS(geo_pos.lat));
-    float clon = cosf(RADIANS(geo_pos.lon));
-    float slon = sinf(RADIANS(geo_pos.lon));
-    float N = WGS84_A / sqrtf(1.0f - WGS84_E2 * slat * slat);
-    result.x = (N + geo_pos.alt) * clat * clon;
-    result.y = (N + geo_pos.lat) * clat * slon;
-    result.z = (N * (1.0f - WGS84_E2) + geo_pos.alt) * slat;
-    return result;
-}
-
-static Vec3 ecef_to_ned(Vec3 geo_origin, Vec3 ecef_pos)
-{
-    Vec3 result;
-    float clat = cosf(RADIANS(geo_origin.lat));
-    float slat = sinf(RADIANS(geo_origin.lat));
-    float clon = cosf(RADIANS(geo_origin.lon));
-    float slon = sinf(RADIANS(geo_origin.lon));
-    Vec3 ecef_orig = geo_to_ecef(geo_origin);
-    float dx = ecef_pos.x - ecef_orig.x;
-    float dy = ecef_pos.y - ecef_orig.y;
-    float dz = ecef_pos.z - ecef_orig.z;
-    result.n = -slat*clon*dx - slat*slon*dy + clat*dz;
-    result.e = -slon*dx + clon*dy;
-    result.d = -(clat*clon*dx + clat*slon*dy + slat*dz);
-    return result;
-}
-
-static Vec3 ned_to_ecef(Vec3 geo_origin, Vec3 ned_pos)
-{
-    Vec3 result;
-    float clat = cosf(RADIANS(geo_origin.lat));
-    float slat = sinf(RADIANS(geo_origin.lat));
-    float clon = cosf(RADIANS(geo_origin.lon));
-    float slon = sinf(RADIANS(geo_origin.lon));
-    Vec3 ecef_origin = geo_to_ecef(geo_origin);
-    result.x = -ned_pos.e*slon - ned_pos.n*clon*slat - ned_pos.d*clon*clat;
-    result.y = ned_pos.e*clon - ned_pos.n*slon*slat - ned_pos.d*slon*clat;
-    result.z = ned_pos.n*clat - ned_pos.d*slat;
-    result += ecef_origin;
-    return result;
-}
-
 #define _wgs_a1 (WGS84_A * WGS84_E2)
 #define _wgs_a2 (_wgs_a1 * _wgs_a1)
 #define _wgs_a3 (_wgs_a1 * WGS84_E2 * 0.5f)
@@ -148,4 +96,82 @@ static Vec3 ecef_to_geo(Vec3 ecef_pos)
         result.lat *= -1.0f;
     }
     return result;
+}
+#undef _wgs_a1 
+#undef _wgs_a2 
+#undef _wgs_a3 
+#undef _wgs_a4 
+#undef _wgs_a5 
+#undef _wgs_a6 
+
+static Vec3 geo_to_ecef(Vec3 geo_pos)
+{
+    Vec3 result;
+    float clat = cosf(RADIANS(geo_pos.lat));
+    float slat = sinf(RADIANS(geo_pos.lat));
+    float clon = cosf(RADIANS(geo_pos.lon));
+    float slon = sinf(RADIANS(geo_pos.lon));
+    float N = WGS84_A / sqrtf(1.0f - WGS84_E2 * slat * slat);
+    result.x = (N + geo_pos.alt) * clat * clon;
+    result.y = (N + geo_pos.alt) * clat * slon;
+    result.z = (N * (1.0f - WGS84_E2) + geo_pos.alt) * slat;
+    return result;
+}
+
+static Vec3 ecef_to_ned(Vec3 geo_origin, Vec3 ecef_pos)
+{
+    Vec3 result;
+    float clat = cosf(RADIANS(geo_origin.lat));
+    float slat = sinf(RADIANS(geo_origin.lat));
+    float clon = cosf(RADIANS(geo_origin.lon));
+    float slon = sinf(RADIANS(geo_origin.lon));
+    Vec3 ecef_orig = geo_to_ecef(geo_origin);
+    float dx = ecef_pos.x - ecef_orig.x;
+    float dy = ecef_pos.y - ecef_orig.y;
+    float dz = ecef_pos.z - ecef_orig.z;
+    result.n = -slat*clon*dx - slat*slon*dy + clat*dz;
+    result.e = -slon*dx + clon*dy;
+    result.d = -(clat*clon*dx + clat*slon*dy + slat*dz);
+    return result;
+}
+
+static Vec3 ned_to_ecef(Vec3 geo_origin, Vec3 ned_pos)
+{
+    Vec3 result;
+    float clat = cosf(RADIANS(geo_origin.lat));
+    float slat = sinf(RADIANS(geo_origin.lat));
+    float clon = cosf(RADIANS(geo_origin.lon));
+    float slon = sinf(RADIANS(geo_origin.lon));
+    Vec3 ecef_origin = geo_to_ecef(geo_origin);
+    result.x = -ned_pos.e*slon - ned_pos.n*clon*slat - ned_pos.d*clon*clat;
+    result.y = ned_pos.e*clon - ned_pos.n*slon*slat - ned_pos.d*slon*clat;
+    result.z = ned_pos.n*clat - ned_pos.d*slat;
+    result += ecef_origin;
+    return result;
+}
+
+// TODO(scott): test this!!!
+static Vec3 sphere_to_ned(Vec3 sphere_pos)
+{
+    Vec3 ned_pos;
+    float azRadians = RADIANS(sphere_pos.az); // wrt to True North
+    float elRadians = RADIANS(sphere_pos.el);
+    ned_pos.e = sphere_pos.range * sinf(azRadians) * cosf(elRadians);
+    ned_pos.n = sphere_pos.range * cosf(azRadians) * cosf(elRadians);
+    ned_pos.d = -sphere_pos.range * sinf(elRadians);
+}
+
+// TODO(scott): test this!!!
+static Vec3 sphere_to_geo(Vec3 shooter_geo, float shooter_heading, Vec3 target_sphere)
+{
+    target_sphere.az += shooter_heading;
+    Vec3 target_ned = sphere_to_ned(target_sphere);
+    Vec3 target_ecef = ned_to_ecef(shooter_geo, target_ned);
+    Vec3 target_geo = ecef_to_geo(target_geo);
+    return target_geo;
+}
+
+static Vec3 geo_to_body(Vec3 shooter_geo, float shooter_heading, Vec3 target_geo)
+{
+    // TODO(scott): write me
 }

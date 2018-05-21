@@ -5,6 +5,10 @@ static void update_entity_position(SimState* state, EntityType* entity)
     // NOTE(scott): we typically want to update kinematics in ECEF
     // and then translate into geo and NED. Graphics are derived
     // from NED coordinates.
+    float integration_time = state->time.effective_elapsed;
+    entity->ecef_vel = integration_time * entity->ecef_acc + entity->ecef_vel;
+    entity->pos.ecef = (integration_time * integration_time * 0.5f * entity->ecef_acc) + (integration_time * entity->ecef_vel) + entity->pos.ecef;
+
     entity->pos.ned = ecef_to_ned(state->entities[state->ownship_index].pos.geo, entity->pos.ecef);
     entity->pos.geo = ecef_to_geo(entity->pos.ecef);
 }
@@ -99,24 +103,11 @@ static void update_simulation(SimState* state)
         switch (entity->kind)
         {
             case EntityKind_Ownship: {
-                set_entity_heading(entity, entity->aircraft.heading + state->time.effective_elapsed * 5.0f);
+                //set_entity_heading(entity, entity->aircraft.heading + state->time.effective_elapsed * 5.0f);
             } break;
 
             case EntityKind_Aircraft: {
 
-                if (entity->iff_status == IffStatusType_Hostile)
-                {
-                    float delta_pos = state->time.effective_elapsed * 1000.0f;
-                    set_entity_ned_pos(entity, entity->pos.ned - vec3(delta_pos, delta_pos, 0), ownship->pos.geo);
-                }
-                else if (entity->iff_status == IffStatusType_Friendly)
-                {
-                    if (entity->aircraft.kind == AircraftKind_F22)
-                    {
-                        //float delta_hdg = state->dt * 10.0f;
-                        //set_entity_heading(entity, entity->aircraft.heading + delta_hdg);
-                    }
-                }
                 update_entity_position(state, entity);
 
             } break;

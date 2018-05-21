@@ -13,6 +13,9 @@
 #define FT_TO_NM(ft) ((ft)*0.0001645788f)
 #define NM_TO_FT(nm) ((nm)*6076.118f)
 
+#define KNTS_TO_FPS(knts) ((knts)*1.68781f)
+#define FPS_TO_KNTS(fps) ((fps)*0.592484f))
+
 #define ABS(val) ((val<0)?-val:val)
 #define MAX(x,y) (x > y ? x : y)
 #define MIN(x,y) (x < y ? x : y)
@@ -27,7 +30,7 @@ union Vec2 {
     struct {
         float x, y;
     };
-    float e[2];
+    float elem[2];
 };
 
 Vec2 operator+(Vec2 left, Vec2 right);
@@ -58,6 +61,12 @@ union Vec3 {
     struct {
         float n, e, d;
     };
+    struct {
+        float az, el, range;
+    };
+    struct {
+        float yaw, pitch, roll;
+    };
     float elem[3];
 };
 
@@ -84,7 +93,7 @@ union Vec4 {
         Vec3 xyz;
         float w;
     };
-    float e[4];
+    float elem[4];
 };
 
 //
@@ -96,39 +105,40 @@ union Mat2 {
         Vec2 x, y;
     };
     Vec2 col[2];
-    float e[4];
+    float elem[4];
 };
 
 float det(Mat2);
 Mat2 transpose(Mat2);
 Mat2 inverse(Mat2);
 Mat2 operator*(Mat2 left, Mat2 right);
+Mat2 operator*(float scalar, Mat2 m);
 
 union Mat3 {
     struct {
         Vec3 x, y, z;
     };
     Vec3 col[3];
-    float e[9];
+    float elem[9];
 };
 
 float det(Mat3);
 Mat3 transpose(Mat3);
 Mat3 inverse(Mat3);
 Mat3 operator*(Mat3 left, Mat3 right);
+Mat3 operator*(float scalar, Mat3 m);
 
 union Mat4 {
     struct {
         Vec4 x, y, z, w;
     };
     Vec4 col[4];
-    float e[16];
+    float elem[16];
 };
 
-float det(Mat4);
 Mat4 transpose(Mat4);
-Mat4 inverse(Mat4);
 Mat4 operator*(Mat4 left, Mat4 right);
+Mat4 operator*(float scalar, Mat4 m);
 
 //
 // Geometry

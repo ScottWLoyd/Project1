@@ -104,10 +104,23 @@ void render_imgui_windows(SimState* state, bool* paused)
             ImGui::Text("Selected Target Data");
             if (selected_entity)
             {
-                ImGui::InputFloat3("Lat, Lon, Alt", (float*)&selected_entity->pos.geo, ImGuiInputTextFlags_ReadOnly);
-                ImGui::InputFloat3("ECEF X, Y, Z", (float*)&selected_entity->pos.ecef, ImGuiInputTextFlags_ReadOnly);
-                ImGui::InputFloat3("N, E, D", (float*)&selected_entity->pos.ned, ImGuiInputTextFlags_ReadOnly);
-                ImGui::InputFloat("Heading", &selected_entity->aircraft.heading);
+                ImGui::Text("Position");
+                ImGui::InputFloat3("Lat, Lon, Alt (deg, feet)", (float*)&selected_entity->pos.geo, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("ECEF X, Y, Z (feet)", (float*)&selected_entity->pos.ecef, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("N, E, D (feet)", (float*)&selected_entity->pos.ned, ImGuiInputTextFlags_ReadOnly);
+
+                ImGui::Text("Rotation");
+                ImGui::InputFloat("Heading (deg)", (float*)&selected_entity->aircraft.heading, 0.1f, 1.0f, -1, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("Yaw, Pitch, Roll (deg)", (float*)&selected_entity->rot, ImGuiInputTextFlags_ReadOnly);
+                
+                ImGui::Text("Rates");
+                float airspeed = selected_entity->aircraft.airspeed;
+                if (ImGui::InputFloat("Airspeed (knts)", &airspeed, 0.1f, 1.0f))
+                {
+                    set_entity_airspeed(selected_entity, airspeed);
+                }
+                ImGui::InputFloat3("ECEF Velocity (fps)", (float*)&selected_entity->ecef_vel, ImGuiInputTextFlags_ReadOnly);
+                ImGui::InputFloat3("ECEF Acceleration (fpsps)", (float*)&selected_entity->ecef_acc, ImGuiInputTextFlags_ReadOnly);
             }
 
             ImGui::Separator();

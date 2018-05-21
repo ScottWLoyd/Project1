@@ -38,6 +38,19 @@ static void set_entity_heading(EntityType* entity, float new_heading)
     entity->aircraft.heading = new_heading;
 }
 
+static void set_entity_airspeed(EntityType* entity, float new_airspeed)
+{
+    entity->aircraft.airspeed = new_airspeed;
+    float fps = KNTS_TO_FPS(entity->aircraft.airspeed);
+    Vec3 ned_vel;
+    ned_vel.n = fps * sinf(RADIANS(entity->aircraft.heading));
+    ned_vel.e = fps * cosf(RADIANS(entity->aircraft.heading));
+    ned_vel.d = 0;
+    // TODO(scott): figure out how to convert this
+    //Vec3 ecef_vel = ned_to_ecef(vec3(0, 0, 0), ned_vel);
+    //entity->ecef_vel = ecef_vel;
+}
+
 inline static uint32_t get_entity_index(SimState* state, EntityType* entity)
 {
     for (uint32_t entity_index = 0; entity_index < state->num_entities; entity_index++)
