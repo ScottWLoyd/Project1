@@ -172,6 +172,34 @@ float mag(Vec3 v)
 // Matrices
 //
 
+float det(Mat2 m)
+{
+    float result;
+    result = m.col[0].x * m.col[1].y - m.col[1].x * m.col[0].y;
+    return result;
+}
+
+Mat2 transpose(Mat2 m)
+{
+    Mat2 result;
+    result.col[0].x = m.e[0];
+    result.col[1].x = m.e[1];
+    result.col[0].y = m.e[2];
+    result.col[1].y = m.e[3];
+    return result;
+}
+
+Mat2 inverse(Mat2 m)
+{
+    Mat2 result;
+    float d = det(m);
+    result.col[0].x = +m.col[1].y / d;
+    result.col[0].y = -m.col[0].y / d;
+    result.col[1].x = -m.col[1].x / d;
+    result.col[1].y = +m.col[0].x / d;
+    return result;
+}
+
 Mat4 transpose(Mat4 m)
 {
     Mat4 result;
@@ -182,30 +210,34 @@ Mat4 transpose(Mat4 m)
     return result;
 }
 
+Mat4 inverse(Mat4 m)
+{
+    Mat4 result = { 0 };
+    assert(0);
+    return result;
+}
+
 void matrix_test(void)
 {
+    Mat2 mat1 = { 1, 3, 2, 4 };
+    float det1 = det(mat1);
+    assert(det1 == (1 * 4 - 2 * 3));
+    Mat2 t1 = transpose(mat1);
+    assert(t1.col[0].x == 1); assert(t1.col[1].x == 3); assert(t1.col[0].y == 2); assert(t1.col[1].y == 4);
+    Mat2 i1 = inverse(mat1);
+    assert(i1.col[0].x == -2); assert(i1.col[1].x == 1); assert(i1.col[0].y == 1.5f); assert(i1.col[1].y == -0.5f);
+    
+
     Mat4 m;
     for (int i = 0; i < 16; i++)
     {
-        m.e[i] = i;
+        m.e[i] = (float)i;
     }
     Mat4 t = transpose(m);
-    assert(t.col[0].x == 0);
-    assert(t.col[1].x == 0);
-    assert(t.col[2].x == 0);
-    assert(t.col[3].x == 0);
-    assert(t.col[0].y == 0);
-    assert(t.col[1].y == 0);
-    assert(t.col[2].y == 0);
-    assert(t.col[3].y == 0);
-    assert(t.col[0].z == 0);
-    assert(t.col[1].z == 0);
-    assert(t.col[2].z == 0);
-    assert(t.col[3].z == 0);
-    assert(t.col[0].w == 0);
-    assert(t.col[1].w == 0);
-    assert(t.col[2].w == 0);
-    assert(t.col[3].w == 0);
+    assert(t.col[0].x == 0); assert(t.col[1].x == 1); assert(t.col[2].x == 2); assert(t.col[3].x == 3);
+    assert(t.col[0].y == 4); assert(t.col[1].y == 5); assert(t.col[2].y == 6); assert(t.col[3].y == 7);
+    assert(t.col[0].z == 8); assert(t.col[1].z == 9); assert(t.col[2].z == 10); assert(t.col[3].z == 11);
+    assert(t.col[0].w == 12); assert(t.col[1].w == 13); assert(t.col[2].w == 14); assert(t.col[3].w == 15);
 }
 
 //

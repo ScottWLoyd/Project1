@@ -95,17 +95,27 @@ union Mat2 {
     struct {
         Vec2 x, y;
     };
-    Vec4 col[2];
+    Vec2 col[2];
     float e[4];
 };
+
+float det(Mat2);
+Mat2 transpose(Mat2);
+Mat2 inverse(Mat2);
+Mat2 operator*(Mat2 left, Mat2 right);
 
 union Mat3 {
     struct {
         Vec3 x, y, z;
     };
-    Vec4 col[3];
+    Vec3 col[3];
     float e[9];
 };
+
+float det(Mat3);
+Mat3 transpose(Mat3);
+Mat3 inverse(Mat3);
+Mat3 operator*(Mat3 left, Mat3 right);
 
 union Mat4 {
     struct {
@@ -115,6 +125,7 @@ union Mat4 {
     float e[16];
 };
 
+float det(Mat4);
 Mat4 transpose(Mat4);
 Mat4 inverse(Mat4);
 Mat4 operator*(Mat4 left, Mat4 right);

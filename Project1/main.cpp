@@ -220,6 +220,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     (void)lpCmdLine;
     (void)nCmdShow;
 
+    matrix_test();
+
     WNDCLASSEX window_class = {0};
     window_class.cbSize = sizeof(window_class);
     window_class.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;
